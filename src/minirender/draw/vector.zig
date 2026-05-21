@@ -5,6 +5,7 @@
 const std = @import("std");
 // @deps debug.renderer
 const Vec4     = @import("../math/vector.zig").Vec4;
+const BiVec    = @import("../math/vector.zig").BiVec;
 const Color    = @import("../color.zig").Color;
 const Renderer = @import("../../minirender.zig").Renderer;
 
@@ -77,7 +78,7 @@ pub fn basis (R: *Renderer, origin: Vec4, right: Vec4, up: Vec4, forward: Vec4, 
 
 
 /// Draw an angle arc between two vectors at the origin.
-pub fn angle (R: *Renderer, a: Vec4, b: Vec4, radius: f32, c: Color) void {
+pub fn angle (R :*Renderer, a :Vec4, b :Vec4, radius :f32, c :Color) void {
   const al = @sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
   const bl = @sqrt(b.x * b.x + b.y * b.y + b.z * b.z);
   if (al < 1e-6 or bl < 1e-6) return;
@@ -112,25 +113,26 @@ pub fn angle (R: *Renderer, a: Vec4, b: Vec4, radius: f32, c: Color) void {
 }
 
 
-/// Draw a bivector as a parallelogram from two vectors at a given origin.
-pub fn bivec (R: *Renderer, origin: Vec4, a: Vec4, b: Vec4, c: Color) void {
-  const tip_a = origin.add(a);
-  const tip_b = origin.add(b);
-  const tip_ab = origin.add(a).add(b);
-  const semi = Color{ .r = c.r, .g = c.g, .b = c.b, .a = c.a * 0.25 };
-  R.triangle(origin, tip_a, tip_ab, semi);
-  R.triangle(origin, tip_ab, tip_b, semi);
-  R.line(origin, tip_a, c);
-  R.line(tip_a, tip_ab, c);
-  R.line(tip_ab, tip_b, c);
-  R.line(tip_b, origin, c);
+/// Draw a parallelogram centered on the given origin.
+pub fn parallelogram (R: *Renderer, origin: Vec4, a: Vec4, b: Vec4, c: Color) void {
+  const corner_0 = origin;
+  const corner_1 = a;
+  const corner_3 = b;
+  const corner_2 = corner_1.add(corner_3).sub(corner_0);
+  const semi     = Color{ .r = c.r, .g = c.g, .b = c.b, .a = c.a * 0.25 };
+  R.triangle(corner_0, corner_1, corner_2, semi);
+  R.triangle(corner_0, corner_2, corner_3, semi);
+  R.line(corner_0, corner_1, c);
+  R.line(corner_1, corner_2, c);
+  R.line(corner_2, corner_3, c);
+  R.line(corner_3, corner_0, c);
 }
 
 
 /// Draw a reflection: original vector, mirror plane, and reflected result.
 pub fn reflection (R: *Renderer, v: Vec4, mirror: Vec4) void {
   const reflected = v.reflect(mirror);
-  const origin = Vec4.point(0, 0, 0);
+  const origin    = Vec4.point(0, 0, 0);
   R.arrow(origin, v, Color.yellow);
   R.text3d(v, "v", Color.yellow);
   R.arrow(origin, reflected, Color.cyan);
