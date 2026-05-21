@@ -11,33 +11,44 @@ const Renderer = @import("../../minirender.zig").Renderer;
 
 
 /// Draw a rotor: the rotation plane parallelogram, input vector, and rotated result.
-pub fn rotor (R: *Renderer, rot: Rotor, v: Vec4, c: Color) void {
+pub fn rotor (R :*Renderer, rot :Rotor, v :Vec4, name :[]const u8, c :Color) void {
   const rotated = rot.apply(v);
-  const origin = Vec4.point(0, 0, 0);
-
+  const origin  = Vec4.point(0, 0, 0);
   R.arrow(origin, v, Color.yellow);
-  R.text3d(v, "original", Color.yellow);
+  R.text3d(v, name, Color.yellow);
   R.arrow(origin, rotated, c);
   R.text3d(rotated, "rotated", c);
-
-  const bv           = rot.bivector();
-  const plane_normal = bv.normal().normalize();
-  const half_angle   = std.math.acos(std.math.clamp(rot.s, -1.0, 1.0));
-
-  // Two tangent vectors in the bivector plane, separated by half_angle.
-  // Their wedge product forms the parallelogram representing the rotor.
-  var tangent_a: Vec4 = undefined;
-  if (@abs(plane_normal.x) < 0.9) {
-    tangent_a = Vec4.cross(plane_normal, Vec4.dir(1, 0, 0)).normalize();
-  } else {
-    tangent_a = Vec4.cross(plane_normal, Vec4.dir(0, 1, 0)).normalize();
-  }
-  const tangent_perp = Vec4.cross(plane_normal, tangent_a).normalize();
-  const cos_h = @cos(half_angle);
-  const sin_h = @sin(half_angle);
-  const tangent_b = tangent_a.scale(cos_h).add(tangent_perp.scale(sin_h));
-
-  R.bivec(origin, tangent_a, tangent_b, c);
+  R.parallelogram(origin, v, rotated, c);
   R.angle(v, rotated, 0.5, c);
+}
+
+
+/// Draw a rotor's projection onto its basis planes
+pub fn rotor_basis (
+    R    : *Renderer,
+    rot  : Rotor,
+    v    : Vec4,
+    c_xy : Color,
+    c_xz : Color,
+    c_yz : Color,
+  ) void {
+  // v' = v.rotated
+  const r      = rot.apply(v);
+  const origin = Vec4.point(0, 0, 0);
+
+  // XY  (drop z):   a = (v.x, v.y,  0 )    b = (v'.x, v'.y,  0 )
+  const xy_a = Vec4.dir(v.x, v.y, 0);
+  const xy_b = Vec4.dir(r.x, r.y, 0);
+  R.parallelogram(origin, xy_a, xy_b, c_xy);
+
+  // XZ  (drop y):   a = (v.x,  0,  v.z)    b = (v'.x,  0,  v'.z)
+  const xz_a = Vec4.dir(v.x, 0, v.z);
+  const xz_b = Vec4.dir(r.x, 0, r.z);
+  R.parallelogram(origin, xz_a, xz_b, c_xz);
+
+  // YZ  (drop x):   a = ( 0,  v.y, v.z)    b = ( 0,  v'.y, v'.z)
+  const yz_a = Vec4.dir(0, v.y, v.z);
+  const yz_b = Vec4.dir(0, r.y, r.z);
+  R.parallelogram(origin, yz_a, yz_b, c_yz);
 }
 

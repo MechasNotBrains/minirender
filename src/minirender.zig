@@ -344,42 +344,43 @@ pub fn ui_flush (R: *Renderer) void {
 // @section Drawing
 //____________________________
 // Coordinates
-pub const coordinates = @import("./minirender/draw/coordinates.zig");
-pub const axes        = coordinates.axes;
-pub const grid        = coordinates.grid;
+pub const coordinates   = @import("./minirender/draw/coordinates.zig");
+pub const axes          = coordinates.axes;
+pub const grid          = coordinates.grid;
 // Lines
-pub const lines       = @import("./minirender/draw/lines.zig");
-pub const point       = lines.point;
-pub const line        = lines.line;
-pub const thickLine   = lines.thickLine;
-pub const arrow       = lines.arrow;
+pub const lines         = @import("./minirender/draw/lines.zig");
+pub const point         = lines.point;
+pub const line          = lines.line;
+pub const thickLine     = lines.thickLine;
+pub const arrow         = lines.arrow;
 // Primitives
-pub const primitives  = @import("./minirender/draw/primitives.zig");
-pub const triangle    = primitives.triangle;
-pub const plane       = primitives.plane;
-pub const box         = primitives.box;
-pub const circle      = primitives.circle;
-pub const sphere      = primitives.sphere;
+pub const primitives    = @import("./minirender/draw/primitives.zig");
+pub const triangle      = primitives.triangle;
+pub const plane         = primitives.plane;
+pub const box           = primitives.box;
+pub const circle        = primitives.circle;
+pub const sphere        = primitives.sphere;
 // Rotor
-pub const rotor_draw  = @import("./minirender/draw/rotor.zig");
-pub const rotor       = rotor_draw.rotor;
+pub const rotor_draw    = @import("./minirender/draw/rotor.zig");
+pub const rotor         = rotor_draw.rotor;
+pub const rotor_basis   = rotor_draw.rotor_basis;
 // Text
-pub const text        = @import("./minirender/draw/text.zig");
-pub const text3d      = text.text3d;
-pub const text3dSized = text.text3dSized;
-pub const textScreen  = text.textScreen;
-pub const vec4Label   = text.vec4Label;
+pub const text          = @import("./minirender/draw/text.zig");
+pub const text3d        = text.text3d;
+pub const text3dSized   = text.text3dSized;
+pub const textScreen    = text.textScreen;
+pub const vec4Label     = text.vec4Label;
 // Ui
-pub const ui          = @import("./minirender/draw/ui.zig");
-pub const hud         = ui.hud;
+pub const ui            = @import("./minirender/draw/ui.zig");
+pub const hud           = ui.hud;
 // Vectors
-pub const vector      = @import("./minirender/draw/vector.zig");
-pub const bivec       = vector.bivec;
-pub const reflection  = vector.reflection;
-pub const angle       = vector.angle;
-pub const basis       = vector.basis;
-pub const projection  = vector.projection;
-pub const vec         = vector.vec;
-pub const vecAt       = vector.vecAt;
-pub const cross       = vector.cross;
+pub const vector        = @import("./minirender/draw/vector.zig");
+pub const parallelogram = vector.parallelogram;
+pub const reflection    = vector.reflection;
+pub const angle         = vector.angle;
+pub const basis         = vector.basis;
+pub const projection    = vector.projection;
+pub const vec           = vector.vec;
+pub const vecAt         = vector.vecAt;
+pub const cross         = vector.cross;
 
