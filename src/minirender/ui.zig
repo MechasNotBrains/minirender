@@ -269,11 +269,10 @@ pub fn Ui (comptime spec: anytype) type {
         }
         cursor_y += UiStyle.group_gap;
       }
+      renderer.ui_flush();
 
       // Labels via existing bitfont in screen space
       Self.drawLabels(self, renderer, panel);
-
-      renderer.ui_flush();
     }
 
     fn drawLabels (_: *const Self, renderer: *Renderer, panel: UiRect) void {
