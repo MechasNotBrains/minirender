@@ -1,7 +1,29 @@
 //:_______________________________________________________________________
 //  minirender  |  Copyright (C) Ivan Mar (sOkam!)  |  GPL-3.0-or-later  :
 //:_______________________________________________________________________
-// Debug Renderer
+//! Minimalistic renderer
+//!
+//! Visualizing vector math in a 3D coordinate system.
+//! Self-contained:
+//! - Minimal OpenGL & GLFW bindings
+//! - 5x7 bitfont
+//! - Simple math library
+//! - Batched immediate-mode drawing
+//!
+//! Usage:
+//! ```zig
+//! const minirender = @import("minirender");
+//! var ctx = try minirender.create(allocator);
+//! defer ctx.destroy();
+//!
+//! // each frame:
+//! ctx.begin(wvp_matrix);
+//! ctx.axes(1.0);
+//! ctx.arrow(.{0,0,0,1}, .{1,2,3,0}, dd.Color.yellow);
+//! ctx.text3d(.{1,2,3,0}, "velocity", dd.Color.white);
+//! ctx.end(); // flushes all batched geometry
+//! ```
+//_________________________________________________________________|
 pub const Renderer = @This();
 // @deps std
 const std = @import("std");
@@ -21,6 +43,7 @@ pub const Ui    = @import("./minirender/ui.zig").Ui;
 // @section Forward Exports: Math
 //____________________________
 pub const Vec4          = @import("./minirender/math/vector.zig").Vec4;
+pub const BiVec         = @import("./minirender/math/vector.zig").BiVec;
 pub const Mat4          = @import("./minirender/math/matrix.zig").Mat4;
 pub const mat4_identity = @import("./minirender/math/matrix.zig").mat4_identity;
 pub const Rotor         = @import("./minirender/math/rotor.zig").Rotor;
