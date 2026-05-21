@@ -16,10 +16,10 @@ pub const Rotor = struct {
   xz :f32 = 0,
   yz :f32 = 0,
 
-  pub fn fromVectors (a: Vec4, b: Vec4) Rotor {
-    const dot = Vec4.dot(a, b);
-    const wedge = Vec4.wedge(a, b);
-    return .{ .s = dot, .xy = wedge.xy, .xz = wedge.xz, .yz = wedge.yz };
+  pub fn fromVectors (from: Vec4, to: Vec4) Rotor {
+    const wedge = Vec4.wedge(to, from);
+    const result = Rotor{ .s = 1 + Vec4.dot(to, from), .xy = wedge.xy, .xz = wedge.xz, .yz = wedge.yz };
+    return result.normalize();
   }
 
   pub fn fromAnglePlane (radians: f32, plane: BiVec) Rotor {
@@ -68,18 +68,18 @@ pub const Rotor = struct {
     // Expand R v first, then multiply by R~
     // R v where R = s + xy*exy + xz*exz + yz*eyz
     //         and v = vx*ex + vy*ey + vz*ez
-    const rv_x = r.s * v.x + r.xy * v.y + r.xz * v.z;
-    const rv_y = r.s * v.y - r.xy * v.x + r.yz * v.z;
-    const rv_z = r.s * v.z - r.xz * v.x - r.yz * v.y;
+    const rv_x   = r.s  * v.x + r.xy * v.y + r.xz * v.z;
+    const rv_y   = r.s  * v.y - r.xy * v.x + r.yz * v.z;
+    const rv_z   = r.s  * v.z - r.xz * v.x - r.yz * v.y;
     const rv_xyz = r.xy * v.z - r.xz * v.y + r.yz * v.x;
 
     // (Rv) R~ where R~ = s - xy*exy - xz*exz - yz*eyz
     const rr = r.reverse();
     return .{
-      .x = rv_x * rr.s - rv_y * rr.xy - rv_z * rr.xz - rv_xyz * rr.yz,
-      .y = rv_x * rr.xy + rv_y * rr.s - rv_z * rr.yz + rv_xyz * rr.xz,
-      .z = rv_x * rr.xz + rv_y * rr.yz + rv_z * rr.s - rv_xyz * rr.xy,
-      .w = v.w,
+      .x= rv_x * rr.s  - rv_y * rr.xy - rv_z * rr.xz - rv_xyz * rr.yz,
+      .y= rv_x * rr.xy + rv_y * rr.s  - rv_z * rr.yz + rv_xyz * rr.xz,
+      .z= rv_x * rr.xz + rv_y * rr.yz + rv_z * rr.s  - rv_xyz * rr.xy,
+      .w= v.w,
     };
   }
 

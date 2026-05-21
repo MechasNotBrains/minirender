@@ -16,7 +16,7 @@ pub const Vec4 = struct {
     return .{ .x = x, .y = y, .z = z, .w = 1 };
   }
 
-  pub fn dir(x: f32, y: f32, z: f32) Vec4 {
+  pub fn dir (x: f32, y: f32, z: f32) Vec4 {
     return .{ .x = x, .y = y, .z = z, .w = 0 };
   }
 
