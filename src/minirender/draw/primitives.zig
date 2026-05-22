@@ -64,16 +64,16 @@ pub fn plane (R: *Renderer, center: Vec4, normal: Vec4, size: f32, c: Color) voi
 
 
 /// Draw a wireframe box (axis-aligned).
-pub fn box (R: *Renderer, min: Vec4, max: Vec4, c: Color) void {
+pub fn bounds (R: *Renderer, min: Vec4, max: Vec4, c: Color) void {
   const corners = [8]Vec4{
-    .{ .x = min.x, .y = min.y, .z = min.z },
-    .{ .x = max.x, .y = min.y, .z = min.z },
-    .{ .x = max.x, .y = max.y, .z = min.z },
-    .{ .x = min.x, .y = max.y, .z = min.z },
-    .{ .x = min.x, .y = min.y, .z = max.z },
-    .{ .x = max.x, .y = min.y, .z = max.z },
-    .{ .x = max.x, .y = max.y, .z = max.z },
-    .{ .x = min.x, .y = max.y, .z = max.z },
+    .{ .x= min.x, .y= min.y, .z= min.z },
+    .{ .x= max.x, .y= min.y, .z= min.z },
+    .{ .x= max.x, .y= max.y, .z= min.z },
+    .{ .x= min.x, .y= max.y, .z= min.z },
+    .{ .x= min.x, .y= min.y, .z= max.z },
+    .{ .x= max.x, .y= min.y, .z= max.z },
+    .{ .x= max.x, .y= max.y, .z= max.z },
+    .{ .x= min.x, .y= max.y, .z= max.z },
   };
   const edges = [12][2]u8{
     .{ 0, 1 }, .{ 1, 2 }, .{ 2, 3 }, .{ 3, 0 },

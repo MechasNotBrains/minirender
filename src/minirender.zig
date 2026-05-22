@@ -357,7 +357,7 @@ pub const arrow         = lines.arrow;
 pub const primitives    = @import("./minirender/draw/primitives.zig");
 pub const triangle      = primitives.triangle;
 pub const plane         = primitives.plane;
-pub const box           = primitives.box;
+pub const bounds        = primitives.bounds;
 pub const circle        = primitives.circle;
 pub const sphere        = primitives.sphere;
 // Rotor
