@@ -10,7 +10,7 @@ const Renderer = @import("../../minirender.zig").Renderer;
 
 
 /// Draw a filled triangle.
-pub fn triangle (R: *Renderer, a: Vec4, b: Vec4, cv: Vec4, c: Color) void {
+pub fn triangle (R :*Renderer, a :Vec4, b :Vec4, cv :Vec4, c :Color) void {
   R.push_vert_tri(a.x, a.y, a.z, c);
   R.push_vert_tri(b.x, b.y, b.z, c);
   R.push_vert_tri(cv.x, cv.y, cv.z, c);
@@ -47,10 +47,10 @@ pub fn plane (R: *Renderer, center: Vec4, normal: Vec4, size: f32, c: Color) voi
 
   const s = size * 0.5;
   const corners = [4]Vec4{
-    .{ .x = center.x + (-tx - bx) * s, .y = center.y + (-ty - by) * s, .z = center.z + (-tz - bz) * s },
-    .{ .x = center.x + (tx - bx) * s, .y = center.y + (ty - by) * s, .z = center.z + (tz - bz) * s },
-    .{ .x = center.x + (tx + bx) * s, .y = center.y + (ty + by) * s, .z = center.z + (tz + bz) * s },
-    .{ .x = center.x + (-tx + bx) * s, .y = center.y + (-ty + by) * s, .z = center.z + (-tz + bz) * s },
+    .{ .x= center.x + (-tx - bx) * s, .y= center.y + (-ty - by) * s, .z= center.z + (-tz - bz) * s },
+    .{ .x= center.x + ( tx - bx) * s, .y= center.y + ( ty - by) * s, .z= center.z + ( tz - bz) * s },
+    .{ .x= center.x + ( tx + bx) * s, .y= center.y + ( ty + by) * s, .z= center.z + ( tz + bz) * s },
+    .{ .x= center.x + (-tx + bx) * s, .y= center.y + (-ty + by) * s, .z= center.z + (-tz + bz) * s },
   };
 
   const semi = Color{ .r = c.r, .g = c.g, .b = c.b, .a = c.a * 0.3 };
@@ -112,20 +112,20 @@ pub fn sphere (R: *Renderer, center: Vec4, radius: f32, c: Color) void {
     const a1 = @as(f32, @floatFromInt(i + 1)) / s_f * std.math.pi * 2.0;
     // XY ring
     R.line(
-      .{ .x = center.x + @cos(a0) * radius, .y = center.y + @sin(a0) * radius, .z = center.z },
-      .{ .x = center.x + @cos(a1) * radius, .y = center.y + @sin(a1) * radius, .z = center.z },
+      .{ .x= center.x + @cos(a0) * radius, .y= center.y + @sin(a0) * radius, .z= center.z },
+      .{ .x= center.x + @cos(a1) * radius, .y= center.y + @sin(a1) * radius, .z= center.z },
       c,
     );
     // XZ ring
     R.line(
-      .{ .x = center.x + @cos(a0) * radius, .y = center.y, .z = center.z + @sin(a0) * radius },
-      .{ .x = center.x + @cos(a1) * radius, .y = center.y, .z = center.z + @sin(a1) * radius },
+      .{ .x= center.x + @cos(a0) * radius, .y= center.y, .z= center.z + @sin(a0) * radius },
+      .{ .x= center.x + @cos(a1) * radius, .y= center.y, .z= center.z + @sin(a1) * radius },
       c,
     );
     // YZ ring
     R.line(
-      .{ .x = center.x, .y = center.y + @cos(a0) * radius, .z = center.z + @sin(a0) * radius },
-      .{ .x = center.x, .y = center.y + @cos(a1) * radius, .z = center.z + @sin(a1) * radius },
+      .{ .x= center.x, .y= center.y + @cos(a0) * radius, .z= center.z + @sin(a0) * radius },
+      .{ .x= center.x, .y= center.y + @cos(a1) * radius, .z= center.z + @sin(a1) * radius },
       c,
     );
   }

@@ -9,8 +9,8 @@ pub const vert = struct {
   pub fn line (R :*Renderer, px :f32, py :f32, pz :f32, c :Color) void {
     if (R.line_count >= Renderer.MAX_VERTICES) return;
     R.line_vertices[R.line_count] = .{
-      .x = px, .y = py, .z = pz,
-      .r = c.r, .g = c.g, .b = c.b, .a = c.a,
+      .x= px,  .y= py,  .z= pz,
+      .r= c.r, .g= c.g, .b= c.b, .a = c.a,
     };
     R.line_count += 1;
   }
@@ -18,8 +18,8 @@ pub const vert = struct {
   pub fn tri (R: *Renderer, px: f32, py: f32, pz: f32, c: Color) void {
     if (R.tri_count >= Renderer.MAX_VERTICES) return;
     R.tri_vertices[R.tri_count] = .{
-      .x = px, .y = py, .z = pz,
-      .r = c.r, .g = c.g, .b = c.b, .a = c.a,
+      .x= px,  .y= py,  .z= pz,
+      .r= c.r, .g= c.g, .b= c.b, .a= c.a,
     };
     R.tri_count += 1;
   }
@@ -27,8 +27,8 @@ pub const vert = struct {
   pub fn text (R: *Renderer, px: f32, py: f32, pz: f32, c: Color) void {
     if (R.text_count >= Renderer.MAX_VERTICES) return;
     R.text_vertices[R.text_count] = .{
-      .x = px, .y = py, .z = pz,
-      .r = c.r, .g = c.g, .b = c.b, .a = c.a,
+      .x= px,  .y= py,  .z= pz,
+      .r= c.r, .g= c.g, .b= c.b, .a= c.a,
     };
     R.text_count += 1;
   }
