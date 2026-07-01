@@ -28,7 +28,7 @@ pub const Renderer = @This();
 // @deps std
 const std = @import("std");
 // @deps minirender
-const gl   = @import("./minirender/lib/opengl.zig");
+pub const gl = @import("./minirender/lib/opengl.zig");
 const glfw = @import("./minirender/lib/glfw.zig");
 // @deps minirender.ui
 const Vertex    = @import("./minirender/ui.zig").Vertex;
@@ -101,6 +101,10 @@ ui_vertex_count :usize = 0,
 camera  :Camera= .{},
 wvp     :Mat4= mat4_identity,
 view    :Mat4= mat4_identity,
+
+// Rendering options
+polygon_offset_factor :f32 = 0,
+polygon_offset_units  :f32 = 0,
 
 // Frame timing
 frame_start :f64 = 0,
@@ -287,18 +291,25 @@ pub fn end (R: *Renderer) void {
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-  // Flush lines
-  if (R.line_count > 0) {
-    const size: gl.Sizeiptr = @intCast(R.line_count * Vertex.Stride);
-    gl.bufferSubData(gl.ArrayBuffer, 0, size, &R.line_vertices);
-    gl.drawArrays(gl.LINES, 0, @intCast(R.line_count));
-  }
-
   // Flush triangles
   if (R.tri_count > 0) {
-    const size: gl.Sizeiptr = @intCast(R.tri_count * Vertex.Stride);
-    gl.bufferSubData(gl.ArrayBuffer, 0, size, &R.tri_vertices);
+    if (R.polygon_offset_factor != 0 or R.polygon_offset_units != 0) {
+      gl.enable(gl.POLYGON_OFFSET_FILL);
+      gl.polygonOffset(R.polygon_offset_factor, R.polygon_offset_units);
+    }
+    const tri_size: gl.Sizeiptr = @intCast(R.tri_count * Vertex.Stride);
+    gl.bufferSubData(gl.ArrayBuffer, 0, tri_size, &R.tri_vertices);
     gl.drawArrays(gl.Triangles, 0, @intCast(R.tri_count));
+    if (R.polygon_offset_factor != 0 or R.polygon_offset_units != 0) {
+      gl.disable(gl.POLYGON_OFFSET_FILL);
+    }
+  }
+
+  // Flush lines
+  if (R.line_count > 0) {
+    const line_size: gl.Sizeiptr = @intCast(R.line_count * Vertex.Stride);
+    gl.bufferSubData(gl.ArrayBuffer, 0, line_size, &R.line_vertices);
+    gl.drawArrays(gl.LINES, 0, @intCast(R.line_count));
   }
 
   // Flush 3D text on top of everything (no depth test)

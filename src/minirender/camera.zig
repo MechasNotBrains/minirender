@@ -16,7 +16,7 @@ const Renderer = @import("../minirender.zig").Renderer;
 
 position          :Vec4 = .{ .x = 3, .y = -3, .z = 2, .w = 1 },
 yaw               :f32 = 0.6,
-pitch             :f32 = 0.4,
+pitch             :f32 = 0,
 move_speed        :f32 = 5.0,
 mouse_sensitivity :f32 = 0.002,
 scroll_speed_factor    :f32 = 1.2,

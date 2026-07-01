@@ -29,7 +29,9 @@ pub const Shader_Fragment     = 0x8B30;
 pub const Shader_Vertex       = 0x8B31;
 pub const COMPILE_STATUS      = 0x8B81;
 pub const Status_Link         = 0x8B82;
+pub const CULL_FACE           = 0x0B44;
 pub const DEPTH_TEST          = 0x0B71;
+pub const POLYGON_OFFSET_FILL = 0x8037;
 pub const BLEND               = 0x0BE2;
 pub const SRC_ALPHA           = 0x0302;
 pub const ONE_MINUS_SRC_ALPHA = 0x0303;
@@ -72,6 +74,7 @@ extern fn glLineWidth               (Float) callconv(.c) void;
 extern fn glClear                   (Bitfield) callconv(.c) void;
 extern fn glClearColor              (Float, Float, Float, Float) callconv(.c) void;
 extern fn glUniform2f               (Int, Float, Float) callconv(.c) void;
+extern fn glPolygonOffset           (Float, Float) callconv(.c) void;
 
 // Loaded function pointers
 pub const genBuffers               = glGenBuffers;
@@ -107,6 +110,7 @@ pub const blendFunc                = glBlendFunc;
 pub const lineWidth                = glLineWidth;
 pub const clear                    = glClear;
 pub const clearColor               = glClearColor;
+pub const polygonOffset            = glPolygonOffset;
 
 pub fn compileShader (shader_type :gl.Enum, source :[*:0]const u8) !gl.Uint {
   const shader = gl.createShader(shader_type);
