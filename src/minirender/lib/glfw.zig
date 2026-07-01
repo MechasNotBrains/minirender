@@ -103,8 +103,25 @@ pub const Release = @as(c_int, 0);
 pub const Press   = @as(c_int, 1);
 pub const Repeat  = @as(c_int, 2);
 pub const Key = struct {
-  pub const escape = @as(c_int, 256);
+  pub const space      = @as(c_int, 32);
+  pub const a          = @as(c_int, 65);
+  pub const r          = @as(c_int, 82);
+  pub const s          = @as(c_int, 83);
+  pub const w          = @as(c_int, 87);
+  pub const escape     = @as(c_int, 256);
+  pub const left_shift = @as(c_int, 340);
+  pub const right_shift= @as(c_int, 341);
 };
+
+pub const Cursor = struct {
+  pub const Normal   = @as(c_int, 0x00034001);
+  pub const Hidden   = @as(c_int, 0x00034002);
+  pub const Disabled = @as(c_int, 0x00034003);
+  pub const Mode     = @as(c_int, 0x00033001);
+};
+
+extern fn glfwSetInputMode(window: ?*Window, mode: c_int, value: c_int) void;
+pub const setInputMode = glfwSetInputMode;
 
 pub const MouseButton = struct {
   pub const left   = @as(c_int, 0);

@@ -147,7 +147,7 @@ pub fn create (allocator: std.mem.Allocator) !*@This() {
   glfw.opengl.setVSync(0);
   glfw.setUserPointer(result.window, @ptrCast(result));
 
-  try glfw.callback.setKey(result.window, glfw.callback.default.key);
+  try glfw.callback.setKey(result.window, Camera.callback.key);
   try glfw.callback.setMouseBtn(result.window, Camera.callback.mouseBtn);
   try glfw.callback.setMousePos(result.window, Camera.callback.mousePos);
   try glfw.callback.setScroll(result.window, Camera.callback.scrollCallback);

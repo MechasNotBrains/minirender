@@ -14,36 +14,113 @@ const mat4Mul         = @import("./math/matrix.zig").mat4Mul;
 const glfw     = @import("./lib/glfw.zig");
 const Renderer = @import("../minirender.zig").Renderer;
 
-yaw      :f32 = 0.6,
-pitch    :f32 = 0.4,
-distance :f32 = 6.0,
-dragging :bool = false,
-last_x   :f64 = 0,
-last_y   :f64 = 0,
+position          :Vec4 = .{ .x = 3, .y = -3, .z = 2, .w = 1 },
+yaw               :f32 = 0.6,
+pitch             :f32 = 0.4,
+move_speed        :f32 = 5.0,
+mouse_sensitivity :f32 = 0.002,
+scroll_speed_factor    :f32 = 1.2,
+scroll_move_multiplier :f32 = 4.0,
+near              :f32 = 0.1,
+far               :f32 = 100.0,
+
+bind_forward      :c_int = glfw.Key.w,
+bind_backward     :c_int = glfw.Key.r,
+bind_left         :c_int = glfw.Key.a,
+bind_right        :c_int = glfw.Key.s,
+bind_up           :c_int = glfw.Key.space,
+bind_shift        :[2]c_int = .{ glfw.Key.left_shift, glfw.Key.right_shift },
+
+right_mouse_down  :bool = false,
+key_forward       :bool = false,
+key_backward      :bool = false,
+key_left          :bool = false,
+key_right         :bool = false,
+key_up            :bool = false,
+key_shift         :bool = false,
+mouse_delta_x     :f32 = 0,
+mouse_delta_y     :f32 = 0,
+last_x            :f64 = 0,
+last_y            :f64 = 0,
 
 
 pub const ViewResult = struct { wvp: Mat4, view: Mat4 };
 
 pub fn viewProjection (cam: *const Camera, aspect: f32) ViewResult {
-  const cos_p = @cos(cam.pitch);
-  const eye = Vec4{
-    .x = cam.distance * cos_p * @cos(cam.yaw),
-    .y = cam.distance * cos_p * @sin(cam.yaw),
-    .z = cam.distance * @sin(cam.pitch),
+  const cos_pitch = @cos(cam.pitch);
+  const target = Vec4{
+    .x = cam.position.x + cos_pitch * @sin(cam.yaw),
+    .y = cam.position.y + cos_pitch * @cos(cam.yaw),
+    .z = cam.position.z + @sin(cam.pitch),
     .w = 1,
   };
-  const view = mat4LookAt(eye, Vec4.point(0, 0, 0), Vec4.dir(0, 0, 1));
-  const proj = mat4Perspective(std.math.pi / 4.0, aspect, 0.1, 100.0);
+  const view = mat4LookAt(cam.position, target, Vec4.dir(0, 0, 1));
+  const proj = mat4Perspective(std.math.pi / 4.0, aspect, cam.near, cam.far);
   return .{ .wvp = mat4Mul(proj, view), .view = view };
 }
 
+pub fn update (cam: *Camera, delta_time: f32) void {
+  if (cam.right_mouse_down) {
+    cam.yaw += cam.mouse_delta_x * cam.mouse_sensitivity;
+    cam.pitch = std.math.clamp(
+      cam.pitch - cam.mouse_delta_y * cam.mouse_sensitivity,
+      -std.math.pi / 2.0 + 0.01,
+      std.math.pi / 2.0 - 0.01,
+    );
+  }
+  cam.mouse_delta_x = 0;
+  cam.mouse_delta_y = 0;
+
+  var forward_amount: f32 = 0;
+  var right_amount: f32 = 0;
+  var vertical_amount: f32 = 0;
+  if (cam.key_forward)  forward_amount += 1;
+  if (cam.key_backward) forward_amount -= 1;
+  if (cam.key_left)     right_amount -= 1;
+  if (cam.key_right)    right_amount += 1;
+  if (cam.key_up and !cam.key_shift) vertical_amount += 1;
+  if (cam.key_up and cam.key_shift)  vertical_amount -= 1;
+
+  const speed = cam.move_speed * delta_time;
+  const sin_yaw = @sin(cam.yaw);
+  const cos_yaw = @cos(cam.yaw);
+
+  cam.position.x += (forward_amount * sin_yaw + right_amount * cos_yaw) * speed;
+  cam.position.y += (forward_amount * cos_yaw - right_amount * sin_yaw) * speed;
+  cam.position.z += vertical_amount * speed;
+}
+
+
 pub const callback = struct {
+  pub fn key (win: ?*glfw.Window, pressed_key: c_int, scancode: c_int, action: c_int, mods: c_int) callconv(.c) void {
+    _ = scancode;
+    _ = mods;
+    if (pressed_key == glfw.Key.escape and (action == glfw.Press or action == glfw.Release)) {
+      glfw.window.setClose(win, glfw.True);
+      return;
+    }
+    const renderer :*Renderer= @ptrCast(@alignCast(glfw.getUserPointer(win) orelse return));
+    const cam = &renderer.camera;
+    const pressed = action == glfw.Press or action == glfw.Repeat;
+    if (pressed_key == cam.bind_forward)  cam.key_forward  = pressed;
+    if (pressed_key == cam.bind_backward) cam.key_backward = pressed;
+    if (pressed_key == cam.bind_left)     cam.key_left     = pressed;
+    if (pressed_key == cam.bind_right)    cam.key_right    = pressed;
+    if (pressed_key == cam.bind_up)       cam.key_up       = pressed;
+    if (pressed_key == cam.bind_shift[0] or pressed_key == cam.bind_shift[1]) cam.key_shift = pressed;
+  }
+
   pub fn mouseBtn (win: ?*glfw.Window, button: c_int, action: c_int, _: c_int) callconv(.c) void {
     const renderer :*Renderer= @ptrCast(@alignCast(glfw.getUserPointer(win) orelse return));
     if (button == glfw.MouseButton.left) {
       renderer.mouse_down = action == glfw.Press;
-      if (!renderer.ui_captured) {
-        renderer.camera.dragging = action == glfw.Press;
+    }
+    if (button == glfw.MouseButton.right) {
+      renderer.camera.right_mouse_down = action == glfw.Press;
+      if (action == glfw.Press) {
+        glfw.setInputMode(win, glfw.Cursor.Mode, glfw.Cursor.Disabled);
+      } else {
+        glfw.setInputMode(win, glfw.Cursor.Mode, glfw.Cursor.Normal);
       }
     }
   }
@@ -52,24 +129,34 @@ pub const callback = struct {
     const renderer :*Renderer= @ptrCast(@alignCast(glfw.getUserPointer(win) orelse return));
     renderer.mouse_x = @floatCast(xpos);
     renderer.mouse_y = @floatCast(ypos);
-    if (!renderer.ui_captured) {
-      const cam = &renderer.camera;
-      if (cam.dragging) {
-        const sensitivity :f32 = 0.005;
-        const delta_x :f32= @floatCast(xpos - cam.last_x);
-        const delta_y :f32= @floatCast(ypos - cam.last_y);
-        cam.yaw   -= delta_x * sensitivity;
-        cam.pitch  = std.math.clamp(cam.pitch + delta_y * sensitivity, -std.math.pi / 2.0 + 0.01, std.math.pi / 2.0 - 0.01);
-      }
+    const cam = &renderer.camera;
+    if (cam.right_mouse_down) {
+      cam.mouse_delta_x += @as(f32, @floatCast(xpos - cam.last_x));
+      cam.mouse_delta_y += @as(f32, @floatCast(ypos - cam.last_y));
     }
-    renderer.camera.last_x = xpos;
-    renderer.camera.last_y = ypos;
+    cam.last_x = xpos;
+    cam.last_y = ypos;
   }
 
   pub fn scrollCallback (win: ?*glfw.Window, _: f64, yoffset: f64) callconv(.c) void {
     const renderer :*Renderer= @ptrCast(@alignCast(glfw.getUserPointer(win) orelse return));
     if (renderer.ui_captured) return;
-    renderer.camera.distance = std.math.clamp(renderer.camera.distance - @as(f32, @floatCast(yoffset)) * 0.5, 1.0, 50.0);
+    const cam = &renderer.camera;
+    const direction: f32 = if (yoffset > 0) 1.0 else -1.0;
+
+    if (cam.key_shift) {
+      if (direction > 0) {
+        cam.move_speed *= cam.scroll_speed_factor;
+      } else {
+        cam.move_speed /= cam.scroll_speed_factor;
+      }
+      cam.move_speed = @max(1.0, cam.move_speed);
+    } else {
+      const distance = cam.move_speed * cam.scroll_move_multiplier * 0.016;
+      const sin_yaw = @sin(cam.yaw);
+      const cos_yaw = @cos(cam.yaw);
+      cam.position.x += sin_yaw * direction * distance;
+      cam.position.y += cos_yaw * direction * distance;
+    }
   }
 };
-
