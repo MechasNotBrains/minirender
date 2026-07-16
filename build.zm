@@ -1,0 +1,37 @@
+#:_______________________________________________________________________
+#  minirender  |  Copyright (C) Ivan Mar (sOkam!)  |  GPL-3.0-or-later  :
+#:_______________________________________________________________________
+import @confy
+
+
+#_______________________________________
+# @section Dependencies
+#_____________________________
+# mdk
+const mstd         = confy.dependency("mstd",  "https://codeberg.org/heysokam/mstd",  .())
+const mglfw        = confy.dependency("mglfw", "https://codeberg.org/heysokam/mglfw", .())
+const mgl          = confy.dependency("mgl",   "https://codeberg.org/heysokam/mgl",   .())
+const mmath        = confy.dependency("mmath", "https://codeberg.org/heysokam/mmath", (deps: &[mstd]))
+const minp         = confy.dependency("minp",  "https://codeberg.org/heysokam/minp",  (deps: &[mmath, mglfw]))
+const mcam         = confy.dependency("mcam",  "https://codeberg.org/heysokam/mcam",  (deps: &[mstd, mmath, minp]))
+const msys         = confy.dependency("msys",  "https://codeberg.org/heysokam/msys",  (deps: &[mstd, mglfw]))
+# Renderer
+const minirender   = confy.dependency("minirender", "https://github.com/MechasNotBrains/minirender", (deps: &[mstd, mmath, mcam, msys, mgl, minp]))
+const dependencies = &[mstd, mglfw, mgl, mmath, minp, mcam, msys, minirender]
+const flags        = &["-lc", "-lglfw", "-lGL"]
+
+
+#_______________________________________
+# @section Builder: Entry Point
+#_____________________________
+proc main (P :confy.Process): !void=
+  # Setup the samples config
+  var cfg      = confy.Config.default()
+  cfg.dir.src  = "samples"
+  cfg.verbose  = true
+  cfg.zig.llvm = true
+  # Build the WIP sample
+  var wip = try confy.Program("wip.zig", (P:P, cfg: cfg, deps: dependencies, flags: flags))
+  try wip.build()
+  try wip.run()
+
