@@ -3,14 +3,35 @@
     .version = "0.0.0",
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
+        .mstd = .{
+            .path = "./bin/.lib/mdk/src/mstd",
+        },
         .mmath = .{
             .path = "./bin/.lib/mdk/src/mmath",
         },
+        // .cvulkan= .{
+        //     .path = "./bin/.lib/cvulkan.ffi",
+        // },
+        .mgl = .{
+            .path = "./bin/.lib/mdk/src/mgl",
+        },
+        .msys = .{
+            .path = "./bin/.lib/mdk/src/msys",
+        },
+        .mcam = .{
+            .path = "./bin/.lib/mdk/src/mcam",
+        },
+        .minp = .{
+            .path = "./bin/.lib/mdk/src/minp",
+        },
     },
     .paths = .{
+        "src/minirender",
+        "src/minirender.zig",
         "build.zig",
         "build.zig.zon",
-        "src/",
+        "license.md",
+        "readme.md",
     },
     .fingerprint = 0xc982533f4f49a110,
 }
