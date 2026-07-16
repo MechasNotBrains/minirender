@@ -16,3 +16,9 @@ pub const rotor    = mmath.vector.rotor;
 pub const Mat4     = mmath.matrix.Mat4;
 pub const mat4     = mmath.matrix.mat4;
 pub const Identity = Mat4.Identity;
+
+pub fn mat4_to_f32 (M :*const Mat4) [16]f32 {
+  var result :[16]f32 = undefined;
+  for (0..16) |index| result[index] = @floatCast(M.data[index]);
+  return result;
+}
