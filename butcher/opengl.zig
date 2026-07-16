@@ -43,6 +43,13 @@ pub const Ui    = @import("./minirender/ui.zig").Ui;
 
 
 //______________________________________
+// @section Shaders
+//____________________________
+const ui_vert_src = @import("./minirender/shaders.zig").ui_vert_src;
+const ui_frag_src = @import("./minirender/shaders.zig").ui_frag_src;
+
+
+//______________________________________
 // @section Limits
 //____________________________
 pub const MAX_VERTICES    = 64 * 1024;
@@ -52,20 +59,8 @@ pub const UI_BUFFER_SIZE  = UI_MAX_VERTICES * UiVertex.Stride;
 
 
 //______________________________________
-// @section Shaders
-//____________________________
-const vert_src    = @import("./minirender/shaders.zig").vert_src;
-const frag_src    = @import("./minirender/shaders.zig").frag_src;
-const ui_vert_src = @import("./minirender/shaders.zig").ui_vert_src;
-const ui_frag_src = @import("./minirender/shaders.zig").ui_frag_src;
-
-
-//______________________________________
 // @section Object Fields
 //____________________________
-// GLFW objects
-window   :?*glfw.Window,
-
 // GL objects — 3D scene
 program  :gl.Uint,
 vao      :gl.Uint,
@@ -90,11 +85,6 @@ text_count     :usize= 0,
 ui_vertices    :[UI_MAX_VERTICES]UiVertex = undefined,
 ui_vertex_count :usize = 0,
 
-// Camera Objects
-camera  :Camera= .{},
-wvp     :Mat4= mat4_identity,
-view    :Mat4= mat4_identity,
-
 // Rendering options
 polygon_offset_factor :f32 = 0,
 polygon_offset_units  :f32 = 0,
@@ -103,147 +93,6 @@ polygon_offset_units  :f32 = 0,
 frame_start :f64 = 0,
 frame_ms    :f32 = 0,
 frame_fps   :f32 = 0,
-
-// Mouse state
-mouse_x      :f32  = 0,
-mouse_y      :f32  = 0,
-mouse_down   :bool = false,
-ui_captured  :bool = false,
-
-
-//______________________________________
-// @section Create/Destroy
-//____________________________
-pub fn destroy (R :*const Renderer) void {
-  const mutable :*Renderer= @constCast(R);
-  gl.deleteProgram(mutable.program);
-  gl.deleteBuffers(1, &[_]gl.Uint{mutable.vbo});
-  gl.deleteVertexArrays(1, &[_]gl.Uint{mutable.vao});
-  gl.deleteProgram(mutable.ui_program);
-  gl.deleteBuffers(1, &[_]gl.Uint{mutable.ui_vbo});
-  gl.deleteVertexArrays(1, &[_]gl.Uint{mutable.ui_vao});
-  glfw.destroy();
-}
-//__________________
-pub fn create (allocator: std.mem.Allocator) !*@This() {
-  if (glfw.create() == 0) return error.GlfwInit;
-  const result = try allocator.create(Renderer);
-  @memset(std.mem.asBytes(result), 0);
-  result.camera      = .{};
-  result.wvp         = mat4_identity;
-  result.view        = mat4_identity;
-  result.frame_start = glfw.getTime();
-
-  glfw.window.hint(glfw.opengl.context.version.M , 4);
-  glfw.window.hint(glfw.opengl.context.version.m , 6);
-  glfw.window.hint(glfw.opengl.context.Debug, @intFromBool(true));
-  glfw.window.hint(glfw.Resizable, @intFromBool(false));
-
-  result.window = glfw.window.create(960, 540, "mmath.debug", null, null) orelse return error.GlfwWindow;
-  glfw.opengl.context.setActive(result.window);
-  glfw.opengl.setVSync(0);
-  glfw.setUserPointer(result.window, @ptrCast(result));
-
-  try glfw.callback.setKey(result.window, Camera.callback.key);
-  try glfw.callback.setMouseBtn(result.window, Camera.callback.mouseBtn);
-  try glfw.callback.setMousePos(result.window, Camera.callback.mousePos);
-  try glfw.callback.setScroll(result.window, Camera.callback.scrollCallback);
-
-  const vs = try gl.compileShader(gl.Shader_Vertex, vert_src);
-  defer gl.deleteShader(vs);
-  const fs = try gl.compileShader(gl.Shader_Fragment, frag_src);
-  defer gl.deleteShader(fs);
-
-  result.program = gl.createProgram();
-  gl.attachShader(result.program, vs);
-  gl.attachShader(result.program, fs);
-  gl.linkProgram(result.program);
-
-  var link_status: gl.Int = 0;
-  gl.getProgramiv(result.program, gl.Status_Link, &link_status);
-  if (link_status == gl.False) {
-    return error.ProgramLinkFailed;
-  }
-
-  result.vao = 0;
-  gl.genVertexArrays(1, @ptrCast(&result.vao));
-  result.vbo = 0;
-  gl.genBuffers(1, @ptrCast(&result.vbo));
-
-  gl.bindVertexArray(result.vao);
-  gl.bindBuffer(gl.ArrayBuffer, result.vbo);
-  gl.bufferData(gl.ArrayBuffer, BUFFER_SIZE, null, gl.DYNAMIC_DRAW);
-
-  // position: location 0, 3 floats
-  gl.vertexAttribPointer(0, 3, gl.FLOAT, gl.False, Vertex.Stride, null);
-  gl.enableVertexAttribArray(0);
-
-  // color: location 1, 4 floats, offset 12 bytes
-  const color_offset: usize = 3 * @sizeOf(f32);
-  gl.vertexAttribPointer(1, 4, gl.FLOAT, gl.False, Vertex.Stride, @ptrFromInt(color_offset));
-  gl.enableVertexAttribArray(1);
-
-  gl.bindVertexArray(0);
-
-  result.wvp_loc = gl.getUniformLocation(result.program, "uWVP");
-
-  // --- UI shader program ---
-  const ui_vs = try gl.compileShader(gl.Shader_Vertex, ui_vert_src);
-  defer gl.deleteShader(ui_vs);
-  const ui_fs = try gl.compileShader(gl.Shader_Fragment, ui_frag_src);
-  defer gl.deleteShader(ui_fs);
-
-  result.ui_program = gl.createProgram();
-  gl.attachShader(result.ui_program, ui_vs);
-  gl.attachShader(result.ui_program, ui_fs);
-  gl.linkProgram(result.ui_program);
-  var ui_link_status: gl.Int = 0;
-  gl.getProgramiv(result.ui_program, gl.Status_Link, &ui_link_status);
-  if (ui_link_status == gl.False) return error.UiProgramLinkFailed;
-
-  result.ui_screen_size_loc = gl.getUniformLocation(result.ui_program, "uScreenSize");
-
-  // --- UI VAO/VBO ---
-  gl.genVertexArrays(1, @ptrCast(&result.ui_vao));
-  gl.genBuffers(1, @ptrCast(&result.ui_vbo));
-  gl.bindVertexArray(result.ui_vao);
-  gl.bindBuffer(gl.ArrayBuffer, result.ui_vbo);
-  gl.bufferData(gl.ArrayBuffer, UI_BUFFER_SIZE, null, gl.DYNAMIC_DRAW);
-
-  const ui_stride = UiVertex.Stride;
-  gl.vertexAttribPointer(0, 2, gl.FLOAT, gl.False, ui_stride, @ptrFromInt(0));
-  gl.enableVertexAttribArray(0);
-  gl.vertexAttribPointer(1, 2, gl.FLOAT, gl.False, ui_stride, @ptrFromInt(2 * @sizeOf(f32)));
-  gl.enableVertexAttribArray(1);
-  gl.vertexAttribPointer(2, 2, gl.FLOAT, gl.False, ui_stride, @ptrFromInt(4 * @sizeOf(f32)));
-  gl.enableVertexAttribArray(2);
-  gl.vertexAttribPointer(3, 1, gl.FLOAT, gl.False, ui_stride, @ptrFromInt(6 * @sizeOf(f32)));
-  gl.enableVertexAttribArray(3);
-  gl.vertexAttribPointer(4, 4, gl.FLOAT, gl.False, ui_stride, @ptrFromInt(7 * @sizeOf(f32)));
-  gl.enableVertexAttribArray(4);
-  gl.vertexAttribPointer(5, 4, gl.FLOAT, gl.False, ui_stride, @ptrFromInt(11 * @sizeOf(f32)));
-  gl.enableVertexAttribArray(5);
-  gl.vertexAttribPointer(6, 1, gl.FLOAT, gl.False, ui_stride, @ptrFromInt(15 * @sizeOf(f32)));
-  gl.enableVertexAttribArray(6);
-  gl.vertexAttribPointer(7, 1, gl.FLOAT, gl.False, ui_stride, @ptrFromInt(16 * @sizeOf(f32)));
-  gl.enableVertexAttribArray(7);
-  gl.bindVertexArray(0);
-
-  return result;
-}
-
-
-//______________________________________
-// @section Helpers
-//____________________________
-pub fn present (R :*const @This()) void { glfw.opengl.present(R.window); }
-pub fn close   (R :*const @This()) bool { return glfw.window.close(R.window) != 0; }
-pub fn sync    (R :*const @This()) void { _=R; glfw.sync(); }
-// Convenience: clear screen
-pub fn clear (R :*const @This(), r :f32, g :f32, b :f32) void { _=R;
-  gl.clearColor(r, g, b, 1.0);
-  gl.clear(gl.Color | gl.Depth);
-}
 
 
 //______________________________________
@@ -265,8 +114,6 @@ pub fn begin (R :*Renderer) void {
   R.frame_ms    = @floatCast(elapsed * 1000.0);
   R.frame_fps   = if (R.frame_ms > 0.0) 1000.0 / R.frame_ms else 0.0;
 
-  R.wvp        = mat4_identity;
-  R.view       = mat4_identity;
   R.line_count = 0;
   R.tri_count  = 0;
   R.text_count = 0;
@@ -390,4 +237,3 @@ pub const projection    = vector.projection;
 pub const vec           = vector.vec;
 pub const vecAt         = vector.vecAt;
 pub const cross         = vector.cross;
-
