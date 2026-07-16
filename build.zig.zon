@@ -4,28 +4,28 @@
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
         .mstd = .{
-            .path = "./bin/.lib/mdk/src/mstd",
+            .url = "git+https://codeberg.org/heysokam/mstd.git#d5ccfe854c882d4847aecd025b285981be498a21",
+            .hash = "mstd-0.0.45-XZG3ZpyjBAC0aA1agvPBfzSMJl-AKBGCHwev8enm-BrT",
         },
         .mmath = .{
-            .path = "./bin/.lib/mdk/src/mmath",
-        },
-        // .cvulkan= .{
-        //     .path = "./bin/.lib/cvulkan.ffi",
-        // },
-        .mgl = .{
-            .path = "./bin/.lib/mdk/src/mgl",
-        },
-        .msys = .{
-            .path = "./bin/.lib/mdk/src/msys",
+            .url = "git+https://codeberg.org/heysokam/mmath.git#aa8d5acbad8091fd5ce4a5f847367a5a610188f6",
+            .hash = "mmath-0.0.0-SaMxXhOqAgC6Vw6kD5EQ1BjhUUm2s2o1CWhiL2BMdoPR",
         },
         .mcam = .{
-            .path = "./bin/.lib/mdk/src/mcam",
+            .url = "git+https://codeberg.org/heysokam/mcam.git#6ac38747effa99fdb21937f2a84c23e8402d7268",
+            .hash = "mcam-0.0.0-HBSODHZOAADEGiPcgdl-OXQi5v6csO6DGaq1xLFp1yop",
+        },
+        .msys = .{
+            .url = "git+https://codeberg.org/heysokam/msys.git#4da95545a2213dea1fab4632919c52c88e0fe8c0",
+            .hash = "msys-0.0.0-ha7hDMQ-AABA8Lxd36mF1yAOxKjuWUVGYi-L4TDPpDxx",
+        },
+        .mgl = .{
+            .url = "git+https://codeberg.org/heysokam/mgl.git#a4da764bfc1cadd0ca5653577f86e62aa9e7b17f",
+            .hash = "mgl-0.0.0-UGt1UErbDQBpZH59dWDt3fVTWUU49O6wf7Wahg5qO2SM",
         },
         .minp = .{
-            .path = "./bin/.lib/mdk/src/minp",
-        },
-        .mui = .{
-            .path = "./bin/.lib/mdk/src/mui",
+            .url = "git+https://codeberg.org/heysokam/minp.git#577e7b251daf4df7cd6d1ba920ae7791c0726ced",
+            .hash = "minp-0.0.0-0wM5t1ZwAABOXTjBlmfoqHaLzoMwKhwEwhImAhJJVeTJ",
         },
     },
     .paths = .{
