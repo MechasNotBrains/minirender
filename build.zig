@@ -5,6 +5,7 @@ pub fn build(B :*@import("std").Build) void {
   const target   = B.standardTargetOptions(.{});
   const optimize = B.standardOptimizeOption(.{});
 
+  const mstd  = B.dependency("mstd",  .{.target= target, .optimize= optimize });
   const mmath = B.dependency("mmath", .{.target= target, .optimize= optimize });
   const mcam  = B.dependency("mcam",  .{.target= target, .optimize= optimize });
   const msys  = B.dependency("msys",  .{.target= target, .optimize= optimize });
@@ -17,6 +18,7 @@ pub fn build(B :*@import("std").Build) void {
     .target           = target,
     .optimize         = optimize,
   });
+  mod.addImport("mstd",  mstd.module("mstd"));
   mod.addImport("mmath", mmath.module("mmath"));
   mod.addImport("mcam",  mcam.module("mcam"));
   mod.addImport("msys",  msys.module("msys"));
