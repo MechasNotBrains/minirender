@@ -14,12 +14,7 @@ const Color    = @import("./color.zig").Color;
 const Renderer = @import("../minirender.zig").Renderer;
 
 
-/// Vertex layout: 3 floats pos + 4 floats color = 7 floats
-pub const Vertex = struct {
-  x :f32,  y :f32,  z :f32,  r :f32,
-  g :f32,  b :f32,  a :f32,
-  pub const Stride = @sizeOf(@This());
-};
+// @note Vertex moved to minirender/vertex.zig
 
 /// Ui Vertex layout
 pub const UiVertex = struct {

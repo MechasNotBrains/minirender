@@ -33,20 +33,13 @@ const glfw = @import("./minirender/lib/glfw.zig");
 // @deps minirender.ui
 const Vertex    = @import("./minirender/ui.zig").Vertex;
 const UiVertex  = @import("./minirender/ui.zig").UiVertex;
-pub const Camera    = @import("./minirender/camera.zig").Camera;
 const font      = @import("./minirender/font.zig");
-pub const Color = @import("./minirender/color.zig").Color;
 pub const Ui    = @import("./minirender/ui.zig").Ui;
 
 
-//______________________________________
-// @section Forward Exports: Math
-//____________________________
-pub const Vec4          = @import("./minirender/math/vector.zig").Vec4;
-pub const BiVec         = @import("./minirender/math/vector.zig").BiVec;
-pub const Mat4          = @import("./minirender/math/matrix.zig").Mat4;
-pub const mat4_identity = @import("./minirender/math/matrix.zig").mat4_identity;
-pub const Rotor         = @import("./minirender/math/rotor.zig").Rotor;
+// @note Math forward exports moved to minirender/math.zig (re-exports from mmath)
+// @note Camera moved to mcam
+// @note Color moved to minirender/color.zig
 
 
 //______________________________________
