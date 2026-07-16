@@ -9,6 +9,7 @@ const std = @import("std");
 const mstd = @import("mstd");
 // @deps minirender
 const gl = @import("mgl").v4;
+const mcam = @import("mcam");
 const minirender = struct {
   const Mat4            = @import("../math.zig").Mat4;
   const mat4_to_f32     = @import("../math.zig").mat4_to_f32;
@@ -72,7 +73,11 @@ pub const Type = struct {
     if (self.indirect_buffer.id != 0) self.indirect_buffer.delete();
   }
   //__________________
-  pub fn create (A :std.mem.Allocator) !Type {
+  pub const create_args = struct {
+    debug :bool = false,
+  };
+  //__________________
+  pub fn create (A :std.mem.Allocator, args :create_args) !Type {
     var result = Type{
       .A = A,
       .shapes    = .create_empty(A),
@@ -80,6 +85,8 @@ pub const Type = struct {
       .vertices  = .create_empty(A),
       .indices   = .create_empty(A),
     };
+
+    if (args.debug) gl.debug.enable(.{});
 
     result.program = try .create(
       try gl.Shader.vertex(minirender.shaders.vert_src),
@@ -158,8 +165,8 @@ pub const Type = struct {
   // @section Sync
   //____________________________
   pub fn sync (
-      R    : *Type,
-      view : minirender.Mat4,
+      R      : *Type,
+      camera : *const mcam.Camera,
     ) void {
     if (R.geometry_dirty) {
       R.upload_geometry();
@@ -175,14 +182,17 @@ pub const Type = struct {
     R.program.enable();
     R.vao.bind();
 
-    const view_projection_floats = minirender.mat4_to_f32(&view);
+    const view       = camera.view();
+    const projection = minirender.Mat4.perspective_Dno(camera.fov, camera.aspect, camera.near, camera.far);
+    const vp         = view.mul(projection);
+    const view_projection_floats = minirender.mat4_to_f32(&vp);
     R.view_projection_location.set(view_projection_floats);
 
     gl.state.enable(.depth_test);
     gl.state.enable(.blend);
     gl.state.blend.set(.src_alpha, .one_minus_src_alpha);
 
-    if (R.indirect_buffer.id != 0 and R.live_command_count > 0) {
+    if (R.live_command_count > 0) {
       R.indirect_buffer.bind(.draw_indirect);
       gl.draw.multi_elements_indirect(.triangles, .unsigned_int, R.live_command_count, 0);
     }

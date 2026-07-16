@@ -10,6 +10,7 @@ const mstd       = @import("mstd");
 const msys       = @import("msys");
 const mgl        = @import("mgl");
 const mcam       = @import("mcam");
+const minp       = @import("minp");
 const minirender = struct {
   const Mat4     = @import("./math.zig").Mat4;
   const Color    = @import("./math.zig").Color;
@@ -40,6 +41,7 @@ pub const Type = struct {
   // @section Object Fields
   //____________________________
   system   :msys.System,
+  input    :minp.Manager,
   camera   :mcam.Camera,
   backend  :Backend,
 
@@ -53,28 +55,39 @@ pub const Type = struct {
       .cvk => @panic("cvulkan backend not implemented"),
       .vk  => @panic("vulkan backend not implemented"),
     }
+    R.input.destroy();
     R.system.term();
   }
   //__________________
   pub const create_args = struct {
-    title  :mstd.zstring= "minirender",
+    title  :mstd.zstring = "minirender",
+    debug  :bool         = false,
   };
   //__________________
   pub fn create (
       A   : std.mem.Allocator,
       arg : Type.create_args,
     ) !Type {
-    const system = try msys.init(A, .{
-      .api    = .gl,
-      .window = .{ .title = arg.title },
-      .gl     = .{ .version = .{ .M = 4, .m = 6 } },
-    });
+    var result :Type= undefined;
+    result.input  = minp.Manager.create(A, .{});
+    result.system = try msys.init(A, .{
+      .api             = .gl,
+      .window          = .{ .title   = arg.title },
+      .gl              = .{ .version = .{ .M = 4, .m = 6 } },
+      .input           = .{
+        .mouse         = .{ .mode = .disabled },
+        .cb            = .{
+          .key         = result.input.key.cb,
+          .mouseBtn    = result.input.mouse.cb.btn,
+          .mousePos    = result.input.mouse.cb.pos,
+          .mouseScroll = result.input.mouse.cb.scroll,
+        }, //:: result.system.input.cb
+      }, //:: result.system.input
+    }); //:: result.system
     try mgl.v4.load(msys.gl.getProc);
-    return Type{
-      .system  = system,
-      .camera  = mcam.Camera{},
-      .backend = .{ .gl = try minirender.opengl.Render.create(A) },
-    };
+    result.camera  = mcam.Camera{};
+    result.backend = .{.gl= try minirender.opengl.Render.create(A, .{ .debug= arg.debug }) };
+    return result;
   }
 
   //______________________________________
@@ -82,12 +95,16 @@ pub const Type = struct {
   //____________________________
   pub fn close   (R :*const Type) bool { return R.system.close(); }
   pub fn present (R :*const Type) void { R.system.present(); }
-  pub fn update  (R :*Type      ) void { R.system.update(); }
+  pub fn update  (R :*Type      ) void {
+    R.system.update();
+    R.camera.update(&R.camera, &R.input);
+    R.input.mouse.change_reset();
+    if (R.input.key.active(.escape)) R.system.set_close(true);
+  }
   //__________________
   pub fn sync (R :*Type) void {
-    const view = R.camera.view_projection();
     switch (R.backend) {
-      .gl  => |*backend| backend.sync(view),
+      .gl  => |*backend| backend.sync(&R.camera),
       .cvk => @panic("cvulkan backend not implemented"),
       .vk  => @panic("vulkan backend not implemented"),
     }
