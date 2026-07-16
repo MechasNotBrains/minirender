@@ -1,12 +1,16 @@
 .{
     .name = .minirender,
     .version = "0.0.0",
-    .dependencies = .{},
     .minimum_zig_version = "0.16.0",
-    .fingerprint = 0xc982533f4f49a110,
+    .dependencies = .{
+        .mmath = .{
+            .path = "./bin/.lib/mdk/src/mmath",
+        },
+    },
     .paths = .{
         "build.zig",
         "build.zig.zon",
         "src/",
     },
+    .fingerprint = 0xc982533f4f49a110,
 }
