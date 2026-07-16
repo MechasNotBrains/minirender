@@ -24,6 +24,9 @@
         .minp = .{
             .path = "./bin/.lib/mdk/src/minp",
         },
+        .mui = .{
+            .path = "./bin/.lib/mdk/src/mui",
+        },
     },
     .paths = .{
         "src/minirender",
