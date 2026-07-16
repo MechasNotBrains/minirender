@@ -6,6 +6,7 @@ const minirender = struct {
   const Color = @import("./math.zig").Color;
   const vec4  = @import("./math.zig").vec4;
 };
+pub const Type = minirender.Color;
 
 
 //______________________________________

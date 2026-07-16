@@ -10,20 +10,15 @@ const mstd = @import("mstd");
 // @deps minirender
 const gl = @import("mgl").v4;
 const minirender = struct {
-  const math           = @import("../math.zig");
-  const Mat4           = math.Mat4;
-  const mat4_to_f32    = math.mat4_to_f32;
-  const shaders        = @import("./opengl/shaders.zig");
-  const vertex         = @import("../vertex.zig");
-  const Vertex         = vertex.Vertex;
-  const GpuInstanceData = vertex.GpuInstanceData;
-  const shapes         = @import("../shape.zig");
-  const Shape          = shapes.Shape;
-  const Instance       = shapes.Instance;
-  const ShapeBox       = shapes.ShapeBox;
-  const InstanceBox    = shapes.InstanceBox;
-  const ShapeKey       = shapes.ShapeKey;
-  const InstanceKey    = shapes.InstanceKey;
+  const Mat4            = @import("../math.zig").Mat4;
+  const mat4_to_f32     = @import("../math.zig").mat4_to_f32;
+  const vec4_to_f32     = @import("../math.zig").vec4_to_f32;
+  const Color           = @import("../math.zig").Color;
+  const Vertex          = @import("../geometry.zig").Vertex;
+  const GpuInstanceData = @import("../geometry.zig").GpuInstanceData;
+  const Shape           = @import("../geometry.zig").Shape;
+  const Instance        = @import("../geometry.zig").Instance;
+  const shaders         = @import("./opengl/shaders.zig");
 };
 
 const VERTEX_STRIDE   :u32 = @sizeOf(minirender.Vertex);
@@ -35,11 +30,14 @@ const INSTANCE_STRIDE :u32 = @sizeOf(minirender.GpuInstanceData);
 //____________________________
 
 pub const Type = struct {
-  allocator :std.mem.Allocator,
+  A  :std.mem.Allocator,
+
+  // Config
+  color_clear :gl.Color= .{ .r= 0.1, .g= 0.1, .b= 0.15 },
 
   // CPU data
-  shapes     :minirender.ShapeBox,
-  instances  :minirender.InstanceBox,
+  shapes     :minirender.Shape.Box,
+  instances  :minirender.Instance.Box,
   vertices   :mstd.seq(minirender.Vertex),
   indices    :mstd.seq(u32),
 
@@ -53,25 +51,37 @@ pub const Type = struct {
   view_projection_location :gl.Uniform     = .{},
 
   // Dirty flags
-  geometry_dirty     :bool  = false,
-  instances_dirty    :bool  = false,
-  live_command_count :u32   = 0,
+  geometry_dirty     :bool = false,
+  instances_dirty    :bool = false,
+  live_command_count :u32  = 0,
 
 
   //______________________________________
   // @section Create/Destroy
   //____________________________
-
-  pub fn create (allocator :std.mem.Allocator) !Type {
+  pub fn destroy (self :*Type) void {
+    self.shapes.destroy();
+    self.instances.destroy();
+    self.vertices.destroy();
+    self.indices.destroy();
+    self.program.delete();
+    self.vao.delete();
+    if (self.geometry_vbo.id    != 0) self.geometry_vbo.delete();
+    if (self.geometry_ebo.id    != 0) self.geometry_ebo.delete();
+    if (self.instance_vbo.id    != 0) self.instance_vbo.delete();
+    if (self.indirect_buffer.id != 0) self.indirect_buffer.delete();
+  }
+  //__________________
+  pub fn create (A :std.mem.Allocator) !Type {
     var result = Type{
-      .allocator = allocator,
-      .shapes    = minirender.ShapeBox.create_empty(allocator),
-      .instances = minirender.InstanceBox.create_empty(allocator),
-      .vertices  = mstd.seq(minirender.Vertex).create_empty(allocator),
-      .indices   = mstd.seq(u32).create_empty(allocator),
+      .A = A,
+      .shapes    = .create_empty(A),
+      .instances = .create_empty(A),
+      .vertices  = .create_empty(A),
+      .indices   = .create_empty(A),
     };
 
-    result.program = try gl.Shader.create(
+    result.program = try .create(
       try gl.Shader.vertex(minirender.shaders.vert_src),
       try gl.Shader.fragment(minirender.shaders.frag_src),
     );
@@ -92,52 +102,54 @@ pub const Type = struct {
     return result;
   }
 
-  pub fn destroy (self :*Type) void {
-    self.shapes.destroy();
-    self.instances.destroy();
-    self.vertices.destroy();
-    self.indices.destroy();
-
-    self.program.delete();
-    self.vao.delete();
-    if (self.geometry_vbo.id != 0) self.geometry_vbo.delete();
-    if (self.geometry_ebo.id != 0) self.geometry_ebo.delete();
-    if (self.instance_vbo.id != 0) self.instance_vbo.delete();
-    if (self.indirect_buffer.id != 0) self.indirect_buffer.delete();
+  //______________________________________
+  // @section Draw
+  //____________________________
+  pub fn clear (R :*const Type) void {
+    gl.fb.clear.color.set(R.color_clear);
+    gl.fb.clear.screen(.{ .color = true, .depth = true });
   }
 
 
   //______________________________________
-  // @section Shape/Instance Registration
+  // @section Geometry
   //____________________________
+  pub fn shape (
+      R     : *Type,
+      verts : []const minirender.Vertex,
+      inds  : []const u32,
+    ) !minirender.Shape.Id {
+    const base_vertex :i32 = @intCast(R.vertices.len());
+    const first_index :u32 = @intCast(R.indices.len());
 
-  pub fn shape (self :*Type, vertex_data :[]const minirender.Vertex, index_data :[]const u32) !minirender.ShapeKey {
-    const base_vertex :i32 = @intCast(self.vertices.len());
-    const first_index :u32 = @intCast(self.indices.len());
+    try R.vertices.add_many(verts);
+    try R.indices.add_many(inds);
 
-    try self.vertices.add_many(vertex_data);
-    try self.indices.add_many(index_data);
-
-    const key = try self.shapes.add(.{
+    const result = try R.shapes.add(.{
       .base_vertex = base_vertex,
       .first_index = first_index,
-      .index_count = @intCast(index_data.len),
+      .index_count = @intCast(inds.len),
     });
 
-    self.geometry_dirty = true;
-    return key;
+    R.geometry_dirty = true;
+    return result;
   }
+  //__________________
+  pub fn instance (
+      R     : *Type,
+      id    : minirender.Shape.Id,
+      world : minirender.Mat4,
+      color : minirender.Color,
+    ) !minirender.Instance.Id {
+    if (R.shapes.get(id) == null) return error.InvalidShapeId;
 
-  pub fn instance (self :*Type, shape_key :minirender.ShapeKey, world :[16]f32, color :[4]f32) !minirender.InstanceKey {
-    if (self.shapes.get(shape_key) == null) return error.InvalidShapeKey;
-
-    const key = try self.instances.add(.{
-      .shape = shape_key,
+    const key = try R.instances.add(.{
+      .shape = id,
       .world = world,
       .color = color,
     });
 
-    self.instances_dirty = true;
+    R.instances_dirty = true;
     return key;
   }
 
@@ -145,43 +157,50 @@ pub const Type = struct {
   //______________________________________
   // @section Sync
   //____________________________
-
-  pub fn sync (self :*Type, view_projection :minirender.Mat4) void {
-    if (self.geometry_dirty) {
-      self.upload_geometry();
-      self.geometry_dirty = false;
-      self.instances_dirty = true;
+  pub fn sync (
+      R    : *Type,
+      view : minirender.Mat4,
+    ) void {
+    if (R.geometry_dirty) {
+      R.upload_geometry();
+      R.geometry_dirty  = false;
+      R.instances_dirty = true;
     }
 
-    if (self.instances_dirty) {
-      self.upload_instances();
-      self.instances_dirty = false;
+    if (R.instances_dirty) {
+      R.upload_instances();
+      R.instances_dirty = false;
     }
 
-    self.program.enable();
-    self.vao.bind();
+    R.program.enable();
+    R.vao.bind();
 
-    const view_projection_floats = minirender.mat4_to_f32(&view_projection);
-    self.view_projection_location.set(view_projection_floats);
+    const view_projection_floats = minirender.mat4_to_f32(&view);
+    R.view_projection_location.set(view_projection_floats);
 
     gl.state.enable(.depth_test);
     gl.state.enable(.blend);
     gl.state.blend.set(.src_alpha, .one_minus_src_alpha);
 
-    if (self.indirect_buffer.id != 0 and self.live_command_count > 0) {
-      self.indirect_buffer.bind(.draw_indirect);
-      gl.draw.multi_elements_indirect(.triangles, .unsigned_int, self.live_command_count, 0);
+    if (R.indirect_buffer.id != 0 and R.live_command_count > 0) {
+      R.indirect_buffer.bind(.draw_indirect);
+      gl.draw.multi_elements_indirect(.triangles, .unsigned_int, R.live_command_count, 0);
     }
 
-    self.vao.unbind();
-    self.program.disable();
+    R.vao.unbind();
+    R.program.disable();
   }
 
 
   //______________________________________
   // @section Buffer Upload
   //____________________________
-
+  fn ensure_buffer (buffer :*gl.Buffer, needed :usize) void {
+    if (buffer.id != 0 and buffer.size >= needed) return;
+    if (buffer.id != 0) buffer.delete();
+    buffer.* = gl.Buffer.create(.{ .storage_dynamic = true }, @max(needed, 1024));
+  }
+  //__________________
   fn upload_geometry (self :*Type) void {
     const vertex_data = self.vertices.data();
     const index_data  = self.indices.data();
@@ -198,13 +217,13 @@ pub const Type = struct {
     self.geometry_ebo.upload(index_data, 0);
     self.vao.element_buffer(self.geometry_ebo);
   }
-
+  //__________________
   fn upload_instances (self :*Type) void {
     const all_instances = self.instances.items();
     if (all_instances.len == 0) return;
 
     // Collect unique shape keys referenced by live instances
-    var unique_keys = mstd.seq(minirender.ShapeKey).create_empty(self.allocator);
+    var unique_keys = mstd.seq(minirender.Shape.Id).create_empty(self.A);
     defer unique_keys.destroy();
 
     for (all_instances) |inst| {
@@ -220,8 +239,8 @@ pub const Type = struct {
     if (live_shape_count == 0) return;
 
     // Count instances per unique shape
-    const counts = self.allocator.alloc(u32, live_shape_count) catch return;
-    defer self.allocator.free(counts);
+    const counts = self.A.alloc(u32, live_shape_count) catch return;
+    defer self.A.free(counts);
     @memset(counts, 0);
 
     for (all_instances) |inst| {
@@ -231,8 +250,8 @@ pub const Type = struct {
     }
 
     // Compute base_instance offsets
-    const offsets = self.allocator.alloc(u32, live_shape_count) catch return;
-    defer self.allocator.free(offsets);
+    const offsets = self.A.alloc(u32, live_shape_count) catch return;
+    defer self.A.free(offsets);
     var running_offset :u32 = 0;
     for (0..live_shape_count) |key_index| {
       offsets[key_index] = running_offset;
@@ -242,16 +261,19 @@ pub const Type = struct {
     const total_instances :usize = running_offset;
 
     // Pack instance data grouped by shape
-    const gpu_data = self.allocator.alloc(minirender.GpuInstanceData, total_instances) catch return;
-    defer self.allocator.free(gpu_data);
-    const write_heads = self.allocator.alloc(u32, live_shape_count) catch return;
-    defer self.allocator.free(write_heads);
+    const gpu_data = self.A.alloc(minirender.GpuInstanceData, total_instances) catch return;
+    defer self.A.free(gpu_data);
+    const write_heads = self.A.alloc(u32, live_shape_count) catch return;
+    defer self.A.free(write_heads);
     @memcpy(write_heads, offsets);
 
     for (all_instances) |inst| {
       for (unique_keys.data(), 0..) |unique_key, key_index| {
         if (unique_key.eq(inst.shape)) {
-          gpu_data[write_heads[key_index]] = .{ .world = inst.world, .color = inst.color };
+          gpu_data[write_heads[key_index]] = .{
+            .world = minirender.mat4_to_f32(&inst.world),
+            .color = minirender.vec4_to_f32(&inst.color)
+          };
           write_heads[key_index] += 1;
           break;
         }
@@ -259,8 +281,8 @@ pub const Type = struct {
     }
 
     // Build indirect commands
-    const commands = self.allocator.alloc(gl.draw.IndirectCommand, live_shape_count) catch return;
-    defer self.allocator.free(commands);
+    const commands = self.A.alloc(gl.draw.IndirectCommand, live_shape_count) catch return;
+    defer self.A.free(commands);
 
     for (unique_keys.data(), 0..) |unique_key, key_index| {
       const shape_data = self.shapes.get(unique_key) orelse continue;
@@ -285,20 +307,5 @@ pub const Type = struct {
 
     self.live_command_count = @intCast(live_shape_count);
   }
-
-  fn ensure_buffer (buffer :*gl.Buffer, needed :usize) void {
-    if (buffer.id != 0 and buffer.size >= needed) return;
-    if (buffer.id != 0) buffer.delete();
-    buffer.* = gl.Buffer.create(.{ .storage_dynamic = true }, @max(needed, 1024));
-  }
-
-
-  //______________________________________
-  // @section Clear
-  //____________________________
-
-  pub fn clear (_:*const Type) void {
-    gl.fb.clear.color.set(.{ .r = 0.1, .g = 0.1, .b = 0.15, .a = 1.0 });
-    gl.fb.clear.screen(.{ .color = true, .depth = true });
-  }
 };
+
