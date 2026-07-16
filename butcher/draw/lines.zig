@@ -23,9 +23,9 @@ pub fn thickLine (R :*Renderer, a :Vec4, b :Vec4, width :f32, c :Color) void {
   if (dl < 1e-6) return;
 
   // Camera forward vector from view matrix (row 2)
-  const fx = R.view[2];
-  const fy = R.view[6];
-  const fz = R.view[10];
+  const fx :f32 = @floatCast(R.view.data[2]);
+  const fy :f32 = @floatCast(R.view.data[6]);
+  const fz :f32 = @floatCast(R.view.data[10]);
 
   // Cross line direction with camera forward to get offset perpendicular to both
   var ox = dy * fz - dz * fy;

@@ -22,19 +22,19 @@ pub fn text3d (R: *Renderer, pos: Vec4, text: []const u8, c: Color) void {
 
 pub fn text3dSized (R: *Renderer, pos: Vec4, text: []const u8, c: Color, glyph_size: f32) void {
   // Billboard vectors from the view matrix (rows of the 3×3 = camera right/up)
-  const m = R.view;
-  var rx = m[0];
-  var ry = m[4];
-  var rz = m[8];
+  const m = R.view.data;
+  var rx :f32 = @floatCast(m[0]);
+  var ry :f32 = @floatCast(m[4]);
+  var rz :f32 = @floatCast(m[8]);
   var rl = @sqrt(rx * rx + ry * ry + rz * rz);
   if (rl < 1e-6) rl = 1;
   rx /= rl;
   ry /= rl;
   rz /= rl;
 
-  var ux = m[1];
-  var uy = m[5];
-  var uz = m[9];
+  var ux :f32 = @floatCast(m[1]);
+  var uy :f32 = @floatCast(m[5]);
+  var uz :f32 = @floatCast(m[9]);
   var ul = @sqrt(ux * ux + uy * uy + uz * uz);
   if (ul < 1e-6) ul = 1;
   ux /= ul;
