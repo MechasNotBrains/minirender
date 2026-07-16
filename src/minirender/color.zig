@@ -1,28 +1,45 @@
 //:_______________________________________________________________________
 //  minirender  |  Copyright (C) Ivan Mar (sOkam!)  |  GPL-3.0-or-later  :
 //:_______________________________________________________________________
-pub const Color = @This();
+// @deps minirender
+const minirender = struct {
+  const Color = @import("./math.zig").Color;
+  const vec4  = @import("./math.zig").vec4;
+};
 
-r :f32,  g :f32,  b :f32,  a :f32= 1,
 
-pub const red       = Color{ .r= 1.0, .g= 0.2, .b= 0.2 };
-pub const green     = Color{ .r= 0.2, .g= 1.0, .b= 0.2 };
-pub const blue      = Color{ .r= 0.3, .g= 0.3, .b= 1.0 };
-pub const yellow    = Color{ .r= 1.0, .g= 1.0, .b= 0.2 };
-pub const cyan      = Color{ .r= 0.2, .g= 1.0, .b= 1.0 };
-pub const magenta   = Color{ .r= 1.0, .g= 0.2, .b= 1.0 };
-pub const white     = Color{ .r= 1.0, .g= 1.0, .b= 1.0 };
-pub const gray      = Color{ .r= 0.5, .g= 0.5, .b= 0.5 };
-pub const dark_gray = Color{ .r= 0.3, .g= 0.3, .b= 0.3 };
+//______________________________________
+// @section Aliases
+//____________________________
+pub const white       = minirender.vec4(1, 1, 1, 1);
+pub const black       = minirender.vec4(0, 0, 0, 1);
+pub const red         = minirender.vec4(1, 0, 0, 1);
+pub const green       = minirender.vec4(0, 1, 0, 1);
+pub const blue        = minirender.vec4(0, 0, 1, 1);
+pub const yellow      = minirender.vec4(1, 1, 0, 1);
+pub const cyan        = minirender.vec4(0, 1, 1, 1);
+pub const magenta     = minirender.vec4(1, 0, 1, 1);
+pub const transparent = minirender.vec4(0, 0, 0, 0);
 
-// Transparent: 0.25
-pub const red_025       = Color{ .r= 1.0, .g= 0.2, .b= 0.2, .a= 0.25 };
-pub const green_025     = Color{ .r= 0.2, .g= 1.0, .b= 0.2, .a= 0.25 };
-pub const blue_025      = Color{ .r= 0.3, .g= 0.3, .b= 1.0, .a= 0.25 };
-pub const yellow_025    = Color{ .r= 1.0, .g= 1.0, .b= 0.2, .a= 0.25 };
-pub const cyan_025      = Color{ .r= 0.2, .g= 1.0, .b= 1.0, .a= 0.25 };
-pub const magenta_025   = Color{ .r= 1.0, .g= 0.2, .b= 1.0, .a= 0.25 };
-pub const white_025     = Color{ .r= 1.0, .g= 1.0, .b= 1.0, .a= 0.25 };
-pub const gray_025      = Color{ .r= 0.5, .g= 0.5, .b= 0.5, .a= 0.25 };
-pub const dark_gray_025 = Color{ .r= 0.3, .g= 0.3, .b= 0.3, .a= 0.25 };
+
+//______________________________________
+// @section Conversion
+//____________________________
+pub fn from_hex (hex :u32) minirender.Color {
+  return minirender.vec4(
+    @as(f32, @floatFromInt((hex >> 24) & 0xFF)) / 255.0,
+    @as(f32, @floatFromInt((hex >> 16) & 0xFF)) / 255.0,
+    @as(f32, @floatFromInt((hex >> 8) & 0xFF)) / 255.0,
+    @as(f32, @floatFromInt(hex & 0xFF)) / 255.0,
+  );
+}
+//__________________
+pub fn from_rgb (hex :u24) minirender.Color {
+  return minirender.vec4(
+    @as(f32, @floatFromInt((hex >> 16) & 0xFF)) / 255.0,
+    @as(f32, @floatFromInt((hex >> 8) & 0xFF)) / 255.0,
+    @as(f32, @floatFromInt(hex & 0xFF)) / 255.0,
+    1.0,
+  );
+}
 
