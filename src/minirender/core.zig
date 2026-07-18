@@ -180,6 +180,8 @@ pub const cb = struct {
     mgl.v4.viewport.set(0, 0, width, height);
     if (width <= 0 or height <= 0) return;
     const renderer :*Type = @ptrCast(@alignCast(msys.glfw.user.pointer.get(window) orelse return));
+    renderer.system.window.W = @intCast(width);
+    renderer.system.window.H = @intCast(height);
     renderer.camera.aspect = @as(f32, @floatFromInt(width)) / @as(f32, @floatFromInt(height));
   }
 };
