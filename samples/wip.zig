@@ -14,6 +14,7 @@ const vec3       = minirender.vec3;
 pub fn main (P :std.process.Init) !void {
   var R = try minirender.Render.create(P.arena.allocator(), .{
     .title = "minirender | Sample Cube",
+    .mouse = .disabled,
   });
   defer R.destroy();
 

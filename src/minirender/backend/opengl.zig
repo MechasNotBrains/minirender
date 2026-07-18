@@ -159,6 +159,27 @@ pub const Type = struct {
     R.instances_dirty = true;
     return key;
   }
+  //__________________
+  pub fn update_instance (
+      R     : *Type,
+      id    : minirender.Instance.Id,
+      world : minirender.Mat4,
+      color : minirender.Color,
+    ) void {
+    const inst = R.instances.get(id) orelse return;
+    inst.world = world;
+    inst.color = color;
+    const gpu_index = inst.gpu_offset orelse {
+      R.instances_dirty = true;
+      return;
+    };
+    const gpu_entry = [1]minirender.GpuInstanceData{.{
+      .world = minirender.mat4_to_f32(&world),
+      .color = minirender.vec4_to_f32(&color),
+    }};
+    const byte_offset = gpu_index * @sizeOf(minirender.GpuInstanceData);
+    R.instance_vbo.upload(&gpu_entry, byte_offset);
+  }
 
 
   //______________________________________
@@ -191,11 +212,15 @@ pub const Type = struct {
     gl.state.enable(.depth_test);
     gl.state.enable(.blend);
     gl.state.blend.set(.src_alpha, .one_minus_src_alpha);
+    gl.state.enable(.polygon_offset_fill);
+    gl.state.polygon_offset.set(1.0, 1.0);
 
     if (R.live_command_count > 0) {
       R.indirect_buffer.bind(.draw_indirect);
       gl.draw.multi_elements_indirect(.triangles, .unsigned_int, R.live_command_count, 0);
     }
+
+    gl.state.disable(.polygon_offset_fill);
 
     R.vao.unbind();
     R.program.disable();
@@ -277,13 +302,15 @@ pub const Type = struct {
     defer self.A.free(write_heads);
     @memcpy(write_heads, offsets);
 
-    for (all_instances) |inst| {
+    for (self.instances.mitems()) |*inst| {
       for (unique_keys.data(), 0..) |unique_key, key_index| {
         if (unique_key.eq(inst.shape)) {
-          gpu_data[write_heads[key_index]] = .{
+          const gpu_index = write_heads[key_index];
+          gpu_data[gpu_index] = .{
             .world = minirender.mat4_to_f32(&inst.world),
             .color = minirender.vec4_to_f32(&inst.color)
           };
+          inst.gpu_offset = gpu_index;
           write_heads[key_index] += 1;
           break;
         }

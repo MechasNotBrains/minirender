@@ -19,6 +19,8 @@ pub const camera     = @import("mcam");
 pub const Camera     = minirender.camera.Camera;
 pub const geometry   = @import("./minirender/geometry.zig");
 pub const Vertex     = minirender.geometry.Vertex;
+pub const Shape      = minirender.geometry.Shape;
+pub const Instance   = minirender.geometry.Instance;
 // UI
 pub const ui         = @import("./minirender/ui.zig");
 pub const Ui         = minirender.ui.Type;

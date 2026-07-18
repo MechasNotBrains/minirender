@@ -44,6 +44,7 @@ pub const Type = struct {
   input    :minp.Manager,
   camera   :mcam.Camera,
   backend  :Backend,
+  userdata :?*anyopaque,
 
 
   //______________________________________
@@ -60,8 +61,12 @@ pub const Type = struct {
   }
   //__________________
   pub const create_args = struct {
-    title  :mstd.zstring = "minirender",
-    debug  :bool         = false,
+    title     :mstd.zstring                    = "minirender",
+    debug     :bool                            = false,
+    mouse     :msys.Options.Input.Mouse.Mode   = .normal,
+    resize    :msys.glfw.Fn.Resize             = null,
+    resizable :bool                            = true,
+    userdata  :?*anyopaque                     = null,
   };
   //__________________
   pub fn create (
@@ -72,10 +77,14 @@ pub const Type = struct {
     result.input  = minp.Manager.create(A, .{});
     result.system = try msys.init(A, .{
       .api             = .gl,
-      .window          = .{ .title   = arg.title },
+      .window          = .{
+        .title         = arg.title,
+        .resizable     = arg.resizable,
+        .cb            = .{ .resize = arg.resize orelse &cb.resize },
+      },
       .gl              = .{ .version = .{ .M = 4, .m = 6 } },
       .input           = .{
-        .mouse         = .{ .mode = .disabled },
+        .mouse         = .{ .mode = arg.mouse },
         .cb            = .{
           .key         = result.input.key.cb,
           .mouseBtn    = result.input.mouse.cb.btn,
@@ -86,7 +95,11 @@ pub const Type = struct {
     }); //:: result.system
     try mgl.v4.load(msys.gl.getProc);
     result.camera  = mcam.Camera{};
-    result.backend = .{.gl= try minirender.opengl.Render.create(A, .{ .debug= arg.debug }) };
+    result.userdata = arg.userdata;
+    result.backend  = .{.gl= try minirender.opengl.Render.create(A, .{ .debug= arg.debug }) };
+    if (arg.userdata) |ud| {
+      msys.glfw.user.pointer.set(result.system.window.ct, ud);
+    }
     return result;
   }
 
@@ -96,11 +109,16 @@ pub const Type = struct {
   pub fn close   (R :*const Type) bool { return R.system.close(); }
   pub fn present (R :*const Type) void { R.system.present(); }
   pub fn update  (R :*Type      ) void {
+    if (R.userdata == null) {
+      R.userdata = @ptrCast(R);
+      msys.glfw.user.pointer.set(R.system.window.ct, R.userdata);
+    }
     R.system.update();
     R.camera.update(&R.camera, &R.input);
     R.input.mouse.change_reset();
     if (R.input.key.active(.escape)) R.system.set_close(true);
   }
+
   //__________________
   pub fn sync (R :*Type) void {
     switch (R.backend) {
@@ -140,5 +158,29 @@ pub const Type = struct {
     .cvk => @panic("cvulkan backend not implemented"),
     .vk  => @panic("vulkan backend not implemented"),
   };}
+  //__________________
+  pub fn update_instance (
+      R     : *Type,
+      id    : Instance.Id,
+      world : minirender.Mat4,
+      color : minirender.Color,
+    ) void { switch (R.backend) {
+    .gl  => |*backend| backend.update_instance(id, world, color),
+    .cvk => @panic("cvulkan backend not implemented"),
+    .vk  => @panic("vulkan backend not implemented"),
+  }}
+};
+
+
+//______________________________________
+// @section Callbacks
+//____________________________
+pub const cb = struct {
+  pub fn resize (window :?*msys.glfw.Window, width :c_int, height :c_int) callconv(.c) void {
+    mgl.v4.viewport.set(0, 0, width, height);
+    if (width <= 0 or height <= 0) return;
+    const renderer :*Type = @ptrCast(@alignCast(msys.glfw.user.pointer.get(window) orelse return));
+    renderer.camera.aspect = @as(f32, @floatFromInt(width)) / @as(f32, @floatFromInt(height));
+  }
 };
 

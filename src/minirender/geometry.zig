@@ -16,9 +16,10 @@ pub const Shape = struct {
 };
 
 pub const Instance = struct {
-  shape  :Shape.Box.Key,
-  world  :minirender.Mat4,
-  color  :minirender.Color,
+  shape      :Shape.Box.Key,
+  world      :minirender.Mat4,
+  color      :minirender.Color,
+  gpu_offset :?u32 = null,
   pub const Box = mstd.Box(Instance);
   pub const Id  = Box.Key;
 };
