@@ -51,6 +51,15 @@ pub const Type = struct {
   indirect_buffer          :gl.Buffer      = .{},
   view_projection_location :gl.Uniform     = .{},
 
+  // Line rendering
+  line_program          :gl.Shader      = undefined,
+  line_vao              :gl.VertexArray  = .{},
+  line_vbo              :gl.Buffer       = .{},
+  line_vp_location      :gl.Uniform      = .{},
+  line_color_location   :gl.Uniform      = .{},
+  line_vertex_count     :u32             = 0,
+  line_color            :[4]f32          = .{1, 0.8, 0, 1},
+
   // Dirty flags
   geometry_dirty     :bool = false,
   instances_dirty    :bool = false,
@@ -66,7 +75,10 @@ pub const Type = struct {
     self.vertices.destroy();
     self.indices.destroy();
     self.program.delete();
+    self.line_program.delete();
     self.vao.delete();
+    self.line_vao.delete();
+    if (self.line_vbo.id != 0) self.line_vbo.delete();
     if (self.geometry_vbo.id    != 0) self.geometry_vbo.delete();
     if (self.geometry_ebo.id    != 0) self.geometry_ebo.delete();
     if (self.instance_vbo.id    != 0) self.instance_vbo.delete();
@@ -93,6 +105,15 @@ pub const Type = struct {
       try gl.Shader.fragment(minirender.shaders.frag_src),
     );
     result.view_projection_location = result.program.uniform("uViewProjection");
+
+    result.line_program = try .create(
+      try gl.Shader.vertex(minirender.shaders.line_vert_src),
+      try gl.Shader.fragment(minirender.shaders.line_frag_src),
+    );
+    result.line_vp_location    = result.line_program.uniform("uViewProjection");
+    result.line_color_location = result.line_program.uniform("uLineColor");
+    result.line_vao = gl.VertexArray.create();
+    result.line_vao.attribute(0, 3, .float, 0, 0);
 
     result.vao = gl.VertexArray.create();
     // Binding 0: per-vertex geometry (divisor 0)
@@ -160,6 +181,42 @@ pub const Type = struct {
     return key;
   }
   //__________________
+  /// @descr
+  ///  Drops an instance, so whatever it was drawing stops being drawn.
+  ///  The instance data is packed afresh on the next sync, so nothing else has to move.
+  pub fn instance_remove (R :*Type, id :minirender.Instance.Id) void {
+    if (R.instances.get(id) == null) return;
+    R.instances.rmv(id);
+    R.instances_dirty = true;
+  }
+  //__________________
+  pub fn reassign_instance (
+      R     : *Type,
+      id    : minirender.Instance.Id,
+      S     : minirender.Shape.Id,
+      world : minirender.Mat4,
+      color : minirender.Color,
+    ) void {
+    const inst = R.instances.get(id) orelse return;
+    inst.shape = S;
+    inst.world = world;
+    inst.color = color;
+    R.instances_dirty = true;
+  }
+  //__________________
+  pub fn set_selection_lines (R :*Type, positions :[]const [3]f32, color :[4]f32) void {
+    const byte_size = positions.len * @sizeOf([3]f32);
+    ensure_buffer(&R.line_vbo, byte_size);
+    R.line_vbo.upload(positions, 0);
+    R.line_vao.buffer(0, R.line_vbo, @sizeOf([3]f32));
+    R.line_vertex_count = @intCast(positions.len);
+    R.line_color = color;
+  }
+  //__________________
+  pub fn clear_selection_lines (R :*Type) void {
+    R.line_vertex_count = 0;
+  }
+  //__________________
   pub fn update_instance (
       R     : *Type,
       id    : minirender.Instance.Id,
@@ -224,6 +281,19 @@ pub const Type = struct {
 
     R.vao.unbind();
     R.program.disable();
+
+    if (R.line_vertex_count > 0) {
+      R.line_program.enable();
+      R.line_vao.bind();
+      R.line_vp_location.set(view_projection_floats);
+      R.line_color_location.set(R.line_color);
+      gl.state.line_width.set(2.0);
+      gl.state.disable(.depth_test);
+      gl.draw.arrays(.lines, 0, @intCast(R.line_vertex_count));
+      gl.state.enable(.depth_test);
+      R.line_vao.unbind();
+      R.line_program.disable();
+    }
   }
 
 
@@ -254,81 +324,84 @@ pub const Type = struct {
   }
   //__________________
   fn upload_instances (self :*Type) void {
+    // Nothing left to draw has to be said, not left unsaid: the commands from last time are
+    // still in the buffer, and returning without touching them draws what is gone.
     const all_instances = self.instances.items();
-    if (all_instances.len == 0) return;
+    if (all_instances.len == 0) {
+      self.live_command_count = 0;
+      return;
+    }
 
-    // Collect unique shape keys referenced by live instances
-    var unique_keys = mstd.seq(minirender.Shape.Id).create_empty(self.A);
-    defer unique_keys.destroy();
+    const max_shape_slots = self.shapes.refs.items.len;
+    if (max_shape_slots == 0) {
+      self.live_command_count = 0;
+      return;
+    }
+
+    // O(n) pass 1: count instances per shape slot
+    const shape_counts = self.A.alloc(u32, max_shape_slots) catch return;
+    defer self.A.free(shape_counts);
+    @memset(shape_counts, 0);
 
     for (all_instances) |inst| {
       if (self.shapes.get(inst.shape) == null) continue;
-      var already_seen = false;
-      for (unique_keys.data()) |existing| {
-        if (existing.eq(inst.shape)) { already_seen = true; break; }
-      }
-      if (!already_seen) unique_keys.add_one(inst.shape) catch return;
+      shape_counts[inst.shape.id] += 1;
     }
 
-    const live_shape_count = unique_keys.len();
-    if (live_shape_count == 0) return;
-
-    // Count instances per unique shape
-    const counts = self.A.alloc(u32, live_shape_count) catch return;
-    defer self.A.free(counts);
-    @memset(counts, 0);
-
-    for (all_instances) |inst| {
-      for (unique_keys.data(), 0..) |unique_key, key_index| {
-        if (unique_key.eq(inst.shape)) { counts[key_index] += 1; break; }
-      }
-    }
-
-    // Compute base_instance offsets
-    const offsets = self.A.alloc(u32, live_shape_count) catch return;
-    defer self.A.free(offsets);
+    // Collect live shapes and compute offsets
+    var live_shape_ids = self.A.alloc(u32, max_shape_slots) catch return;
+    defer self.A.free(live_shape_ids);
+    var shape_to_offset = self.A.alloc(u32, max_shape_slots) catch return;
+    defer self.A.free(shape_to_offset);
+    var live_shape_count :u32 = 0;
     var running_offset :u32 = 0;
-    for (0..live_shape_count) |key_index| {
-      offsets[key_index] = running_offset;
-      running_offset += counts[key_index];
+
+    for (0..max_shape_slots) |slot| {
+      if (shape_counts[slot] == 0) continue;
+      live_shape_ids[live_shape_count] = @intCast(slot);
+      shape_to_offset[slot] = running_offset;
+      running_offset += shape_counts[slot];
+      live_shape_count += 1;
     }
 
+    if (live_shape_count == 0) {
+      self.live_command_count = 0;
+      return;
+    }
     const total_instances :usize = running_offset;
 
-    // Pack instance data grouped by shape
+    // O(n) pass 2: pack instance data grouped by shape
     const gpu_data = self.A.alloc(minirender.GpuInstanceData, total_instances) catch return;
     defer self.A.free(gpu_data);
-    const write_heads = self.A.alloc(u32, live_shape_count) catch return;
+    const write_heads = self.A.alloc(u32, max_shape_slots) catch return;
     defer self.A.free(write_heads);
-    @memcpy(write_heads, offsets);
+    @memcpy(write_heads[0..max_shape_slots], shape_to_offset[0..max_shape_slots]);
 
     for (self.instances.mitems()) |*inst| {
-      for (unique_keys.data(), 0..) |unique_key, key_index| {
-        if (unique_key.eq(inst.shape)) {
-          const gpu_index = write_heads[key_index];
-          gpu_data[gpu_index] = .{
-            .world = minirender.mat4_to_f32(&inst.world),
-            .color = minirender.vec4_to_f32(&inst.color)
-          };
-          inst.gpu_offset = gpu_index;
-          write_heads[key_index] += 1;
-          break;
-        }
-      }
+      if (self.shapes.get(inst.shape) == null) continue;
+      const slot = inst.shape.id;
+      const gpu_index = write_heads[slot];
+      gpu_data[gpu_index] = .{
+        .world = minirender.mat4_to_f32(&inst.world),
+        .color = minirender.vec4_to_f32(&inst.color),
+      };
+      inst.gpu_offset = gpu_index;
+      write_heads[slot] += 1;
     }
 
     // Build indirect commands
     const commands = self.A.alloc(gl.draw.IndirectCommand, live_shape_count) catch return;
     defer self.A.free(commands);
 
-    for (unique_keys.data(), 0..) |unique_key, key_index| {
-      const shape_data = self.shapes.get(unique_key) orelse continue;
-      commands[key_index] = .{
+    for (live_shape_ids[0..live_shape_count], 0..) |slot, command_index| {
+      const shape_key = minirender.Shape.Id{ .id = slot, .version = self.shapes.refs.items[slot].version };
+      const shape_data = self.shapes.get(shape_key) orelse continue;
+      commands[command_index] = .{
         .index_count    = shape_data.index_count,
-        .instance_count = counts[key_index],
+        .instance_count = shape_counts[slot],
         .first_index    = shape_data.first_index,
         .base_vertex    = shape_data.base_vertex,
-        .base_instance  = offsets[key_index],
+        .base_instance  = shape_to_offset[slot],
       };
     }
 

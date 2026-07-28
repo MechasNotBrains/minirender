@@ -40,11 +40,12 @@ pub const Type = struct {
   //______________________________________
   // @section Object Fields
   //____________________________
-  system   :msys.System,
-  input    :minp.Manager,
-  camera   :mcam.Camera,
-  backend  :Backend,
-  userdata :?*anyopaque,
+  system          :msys.System,
+  input           :minp.Manager,
+  camera          :mcam.Camera,
+  backend         :Backend,
+  userdata        :?*anyopaque,
+  close_on_escape :bool = true,
 
 
   //______________________________________
@@ -116,7 +117,7 @@ pub const Type = struct {
     R.system.update();
     R.camera.update(&R.camera, &R.input);
     R.input.mouse.change_reset();
-    if (R.input.key.active(.escape)) R.system.set_close(true);
+    if (R.close_on_escape and R.input.key.active(.escape)) R.system.set_close(true);
   }
 
   //__________________
@@ -158,6 +159,41 @@ pub const Type = struct {
     .cvk => @panic("cvulkan backend not implemented"),
     .vk  => @panic("vulkan backend not implemented"),
   };}
+  //__________________
+  /// @descr Drops an instance, so whatever it was drawing stops being drawn.
+  pub fn instance_remove (R :*Type, id :Instance.Id) void { switch (R.backend) {
+    .gl  => |*backend| backend.instance_remove(id),
+    .cvk => @panic("cvulkan backend not implemented"),
+    .vk  => @panic("vulkan backend not implemented"),
+  }}
+  //__________________
+  pub fn reassign_instance (
+      R     : *Type,
+      id    : Instance.Id,
+      S     : Shape.Id,
+      world : minirender.Mat4,
+      color : minirender.Color,
+    ) void { switch (R.backend) {
+    .gl  => |*backend| backend.reassign_instance(id, S, world, color),
+    .cvk => @panic("cvulkan backend not implemented"),
+    .vk  => @panic("vulkan backend not implemented"),
+  }}
+  //__________________
+  pub fn set_selection_lines (
+      R         : *Type,
+      positions : []const [3]f32,
+      color     : [4]f32,
+    ) void { switch (R.backend) {
+    .gl  => |*backend| backend.set_selection_lines(positions, color),
+    .cvk => @panic("cvulkan backend not implemented"),
+    .vk  => @panic("vulkan backend not implemented"),
+  }}
+  //__________________
+  pub fn clear_selection_lines (R :*Type) void { switch (R.backend) {
+    .gl  => |*backend| backend.clear_selection_lines(),
+    .cvk => @panic("cvulkan backend not implemented"),
+    .vk  => @panic("vulkan backend not implemented"),
+  }}
   //__________________
   pub fn update_instance (
       R     : *Type,

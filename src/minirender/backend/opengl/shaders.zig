@@ -31,6 +31,24 @@ pub const frag_src: [:0]const u8 =
   \\}
 ;
 
+pub const line_vert_src: [:0]const u8 =
+  \\#version 460 core
+  \\layout(location=0) in vec3 aPosition;
+  \\uniform mat4 uViewProjection;
+  \\void main(){
+  \\  gl_Position = uViewProjection * vec4(aPosition, 1.0);
+  \\}
+;
+
+pub const line_frag_src: [:0]const u8 =
+  \\#version 460 core
+  \\uniform vec4 uLineColor;
+  \\out vec4 FragColor;
+  \\void main(){
+  \\  FragColor = uLineColor;
+  \\}
+;
+
 pub const ui_vert_src: [:0]const u8 =
   \\#version 330 core
   \\layout(location=0) in vec2 aScreenPos;
