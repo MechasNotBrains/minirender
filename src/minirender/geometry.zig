@@ -32,6 +32,7 @@ pub const Instance = struct {
 pub const Vertex = extern struct {
   position :[3]f32 = .{ 0, 0, 0 },
   normal   :[3]f32 = .{ 0, 0, 0 },
+  uv       :[2]f32 = .{ 0, 0 },
 };
 
 pub const GpuInstanceData = extern struct {

@@ -6,14 +6,17 @@ pub const vert_src: [:0]const u8 =
   \\#version 460 core
   \\layout(location=0) in vec3 aPosition;
   \\layout(location=1) in vec3 aNormal;
-  \\layout(location=2) in mat4 aWorld;
-  \\layout(location=6) in vec4 aColor;
+  \\layout(location=2) in vec2 aUV;
+  \\layout(location=3) in mat4 aWorld;
+  \\layout(location=7) in vec4 aColor;
   \\uniform mat4 uViewProjection;
   \\out vec3 vNormal;
+  \\out vec2 vUV;
   \\out vec4 vColor;
   \\void main(){
   \\  gl_Position = uViewProjection * aWorld * vec4(aPosition, 1.0);
   \\  vNormal = mat3(aWorld) * aNormal;
+  \\  vUV = aUV;
   \\  vColor = aColor;
   \\}
 ;
@@ -21,13 +24,18 @@ pub const vert_src: [:0]const u8 =
 pub const frag_src: [:0]const u8 =
   \\#version 460 core
   \\in vec3 vNormal;
+  \\in vec2 vUV;
   \\in vec4 vColor;
+  \\uniform sampler2D uAtlas;
+  \\uniform bool uTextured;
   \\out vec4 FragColor;
   \\void main(){
   \\  vec3 light_direction = normalize(vec3(0.3, 0.7, 1.0));
   \\  float diffuse = max(dot(normalize(vNormal), light_direction), 0.0);
   \\  float ambient = 0.15;
-  \\  FragColor = vec4(vColor.rgb * (ambient + diffuse * 0.85), vColor.a);
+  \\  vec4 base_color = vColor;
+  \\  if (uTextured) base_color *= texture(uAtlas, vUV);
+  \\  FragColor = vec4(base_color.rgb * (ambient + diffuse * 0.85), base_color.a);
   \\}
 ;
 
