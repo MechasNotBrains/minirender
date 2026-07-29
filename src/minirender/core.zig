@@ -167,6 +167,13 @@ pub const Type = struct {
     .vk  => @panic("vulkan backend not implemented"),
   }}
   //__________________
+  /// @descr Lets go of a shape, along with the geometry it owns.
+  pub fn shape_remove (R :*Type, id :Shape.Id) void { switch (R.backend) {
+    .gl  => |*backend| backend.shape_remove(id),
+    .cvk => @panic("cvulkan backend not implemented"),
+    .vk  => @panic("vulkan backend not implemented"),
+  }}
+  //__________________
   pub fn reassign_instance (
       R     : *Type,
       id    : Instance.Id,

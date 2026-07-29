@@ -62,6 +62,8 @@ pub const Type = struct {
 
   // Dirty flags
   geometry_dirty     :bool = false,
+  /// Whether a shape has been let go of, leaving a gap in the geometry buffers to close.
+  geometry_gapped    :bool = false,
   instances_dirty    :bool = false,
   live_command_count :u32  = 0,
 
@@ -154,13 +156,27 @@ pub const Type = struct {
     try R.indices.add_many(inds);
 
     const result = try R.shapes.add(.{
-      .base_vertex = base_vertex,
-      .first_index = first_index,
-      .index_count = @intCast(inds.len),
+      .base_vertex  = base_vertex,
+      .first_index  = first_index,
+      .index_count  = @intCast(inds.len),
+      .vertex_count = @intCast(verts.len),
     });
 
     R.geometry_dirty = true;
     return result;
+  }
+  //__________________
+  /// @descr
+  ///  Lets go of a shape, along with the geometry it owns.
+  ///
+  ///  Shapes are laid end to end in one pair of buffers, so letting one go leaves a gap in
+  ///  the middle of them. The gap is closed on the next upload, which is also where every
+  ///  shape learns where its geometry ended up.
+  pub fn shape_remove (R :*Type, id :minirender.Shape.Id) void {
+    if (R.shapes.get(id) == null) return;
+    R.shapes.rmv(id);
+    R.geometry_gapped = true;
+    R.geometry_dirty  = true;
   }
   //__________________
   pub fn instance (
@@ -306,7 +322,41 @@ pub const Type = struct {
     buffer.* = gl.Buffer.create(.{ .storage_dynamic = true }, @max(needed, 1024));
   }
   //__________________
+  /// @descr
+  ///  Lays the geometry of every shape still held down end to end again, closing the gaps
+  ///  left by the ones let go of, and tells each shape where its own ended up.
+  fn pack_geometry (self :*Type) void {
+    var packed_vertices = mstd.seq(minirender.Vertex).create_empty(self.A);
+    var packed_indices  = mstd.seq(u32).create_empty(self.A);
+
+    const old_vertices = self.vertices.data();
+    const old_indices  = self.indices.data();
+
+    for (self.shapes.mitems()) |*held| {
+      const vertex_from :usize = @intCast(held.base_vertex);
+      const vertex_upto = vertex_from + held.vertex_count;
+      const index_upto  = held.first_index + held.index_count;
+      if (vertex_upto > old_vertices.len or index_upto > old_indices.len) continue;
+
+      const moved_base  :i32 = @intCast(packed_vertices.len());
+      const moved_first :u32 = @intCast(packed_indices.len());
+      packed_vertices.add_many(old_vertices[vertex_from..vertex_upto]) catch return;
+      packed_indices.add_many(old_indices[held.first_index..index_upto]) catch return;
+      held.base_vertex = moved_base;
+      held.first_index = moved_first;
+    }
+
+    self.vertices.destroy();
+    self.indices.destroy();
+    self.vertices = packed_vertices;
+    self.indices  = packed_indices;
+  }
+  //__________________
   fn upload_geometry (self :*Type) void {
+    if (self.geometry_gapped) {
+      self.pack_geometry();
+      self.geometry_gapped = false;
+    }
     const vertex_data = self.vertices.data();
     const index_data  = self.indices.data();
     if (vertex_data.len == 0) return;

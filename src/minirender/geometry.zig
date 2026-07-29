@@ -11,6 +11,10 @@ pub const Shape = struct {
   base_vertex  :i32,
   first_index  :u32,
   index_count  :u32,
+  /// How many vertices the shape owns from `base_vertex` on.
+  /// Without it there is no telling where one shape's vertices end once another between them
+  /// has been let go of.
+  vertex_count :u32 = 0,
   pub const Box = mstd.Box(Shape);
   pub const Id  = Box.Key;
 };
