@@ -7,16 +7,22 @@ pub const vert_src: [:0]const u8 =
   \\layout(location=0) in vec3 aPosition;
   \\layout(location=1) in vec3 aNormal;
   \\layout(location=2) in vec2 aUV;
-  \\layout(location=3) in mat4 aWorld;
-  \\layout(location=7) in vec4 aColor;
+  \\layout(location=3) in vec2 aAtlasOffset;
+  \\layout(location=4) in vec2 aAtlasScale;
+  \\layout(location=5) in mat4 aWorld;
+  \\layout(location=9) in vec4 aColor;
   \\uniform mat4 uViewProjection;
   \\out vec3 vNormal;
   \\out vec2 vUV;
+  \\out vec2 vAtlasOffset;
+  \\out vec2 vAtlasScale;
   \\out vec4 vColor;
   \\void main(){
   \\  gl_Position = uViewProjection * aWorld * vec4(aPosition, 1.0);
   \\  vNormal = mat3(aWorld) * aNormal;
   \\  vUV = aUV;
+  \\  vAtlasOffset = aAtlasOffset;
+  \\  vAtlasScale = aAtlasScale;
   \\  vColor = aColor;
   \\}
 ;
@@ -25,6 +31,8 @@ pub const frag_src: [:0]const u8 =
   \\#version 460 core
   \\in vec3 vNormal;
   \\in vec2 vUV;
+  \\in vec2 vAtlasOffset;
+  \\in vec2 vAtlasScale;
   \\in vec4 vColor;
   \\uniform sampler2D uAtlas;
   \\uniform bool uTextured;
@@ -34,7 +42,10 @@ pub const frag_src: [:0]const u8 =
   \\  float diffuse = max(dot(normalize(vNormal), light_direction), 0.0);
   \\  float ambient = 0.15;
   \\  vec4 base_color = vColor;
-  \\  if (uTextured) base_color *= texture(uAtlas, vUV);
+  \\  if (uTextured) {
+  \\    vec2 atlas_uv = fract(vUV) * vAtlasScale + vAtlasOffset;
+  \\    base_color.rgb *= texture(uAtlas, atlas_uv).rgb;
+  \\  }
   \\  FragColor = vec4(base_color.rgb * (ambient + diffuse * 0.85), base_color.a);
   \\}
 ;

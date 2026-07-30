@@ -52,7 +52,6 @@ pub const Type = struct {
   view_projection_location :gl.Uniform     = .{},
   atlas_location           :gl.Uniform     = .{},
   textured_location        :gl.Uniform     = .{},
-  atlas_texture            :gl.Texture     = .{},
 
   // Line rendering
   line_program          :gl.Shader      = undefined,
@@ -62,6 +61,9 @@ pub const Type = struct {
   line_color_location   :gl.Uniform      = .{},
   line_vertex_count     :u32             = 0,
   line_color            :[4]f32          = .{1, 0.8, 0, 1},
+
+  // Texture
+  textured           :bool = false,
 
   // Dirty flags
   geometry_dirty     :bool = false,
@@ -124,15 +126,17 @@ pub const Type = struct {
 
     result.vao = gl.VertexArray.create();
     // Binding 0: per-vertex geometry (divisor 0)
-    result.vao.attribute(0, 3, .float, 0, 0);                   // position
-    result.vao.attribute(1, 3, .float, 0, 3 * @sizeOf(f32));    // normal
-    result.vao.attribute(2, 2, .float, 0, 6 * @sizeOf(f32));    // uv
+    result.vao.attribute(0, 3, .float, 0, 0);                    // position
+    result.vao.attribute(1, 3, .float, 0, 3  * @sizeOf(f32));    // normal
+    result.vao.attribute(2, 2, .float, 0, 6  * @sizeOf(f32));    // uv
+    result.vao.attribute(3, 2, .float, 0, 8  * @sizeOf(f32));    // atlas_offset
+    result.vao.attribute(4, 2, .float, 0, 10 * @sizeOf(f32));    // atlas_scale
     // Binding 1: per-instance data (divisor 1)
-    result.vao.attribute(3, 4, .float, 1, 0);                   // world row 0
-    result.vao.attribute(4, 4, .float, 1, 16);                  // world row 1
-    result.vao.attribute(5, 4, .float, 1, 32);                  // world row 2
-    result.vao.attribute(6, 4, .float, 1, 48);                  // world row 3
-    result.vao.attribute(7, 4, .float, 1, 64);                  // color
+    result.vao.attribute(5, 4, .float, 1, 0);                    // world row 0
+    result.vao.attribute(6, 4, .float, 1, 16);                   // world row 1
+    result.vao.attribute(7, 4, .float, 1, 32);                   // world row 2
+    result.vao.attribute(8, 4, .float, 1, 48);                   // world row 3
+    result.vao.attribute(9, 4, .float, 1, 64);                   // color
     result.vao.divisor(1, 1);
 
     return result;
@@ -288,12 +292,8 @@ pub const Type = struct {
     const view_projection_floats = minirender.mat4_to_f32(&vp);
     R.view_projection_location.set(view_projection_floats);
 
-    const textured = R.atlas_texture.id != 0;
-    R.textured_location.set(textured);
-    if (textured) {
-      R.atlas_texture.bind(0);
-      R.atlas_location.set(@as(i32, 0));
-    }
+    R.atlas_location.set(@as(i32, 0));
+    R.textured_location.set(R.textured);
 
     gl.state.enable(.depth_test);
     gl.state.enable(.blend);
