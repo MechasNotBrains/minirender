@@ -91,6 +91,7 @@ pub const Type = struct {
           .mouseBtn    = result.input.mouse.cb.btn,
           .mousePos    = result.input.mouse.cb.pos,
           .mouseScroll = result.input.mouse.cb.scroll,
+          .char        = result.input.text.cb,
         }, //:: result.system.input.cb
       }, //:: result.system.input
     }); //:: result.system
