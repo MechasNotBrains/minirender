@@ -42,7 +42,7 @@ pub const frag_src: [:0]const u8 =
   \\  float diffuse = max(dot(normalize(vNormal), light_direction), 0.0);
   \\  float ambient = 0.15;
   \\  vec4 base_color = vColor;
-  \\  if (uTextured) {
+  \\  if (uTextured && vAtlasScale.x > 0.0) {
   \\    vec2 atlas_uv = fract(vUV) * vAtlasScale + vAtlasOffset;
   \\    base_color.rgb *= texture(uAtlas, atlas_uv).rgb;
   \\  }
@@ -69,63 +69,79 @@ pub const line_frag_src: [:0]const u8 =
 ;
 
 pub const ui_vert_src: [:0]const u8 =
-  \\#version 330 core
-  \\layout(location=0) in vec2 aScreenPos;
-  \\layout(location=1) in vec2 aLocalPos;
-  \\layout(location=2) in vec2 aHalfSize;
-  \\layout(location=3) in float aRadius;
-  \\layout(location=4) in vec4 aFillColor;
-  \\layout(location=5) in vec4 aBorderColor;
-  \\layout(location=6) in float aMode;
-  \\layout(location=7) in float aFillRatio;
+  \\#version 460 core
+  \\layout(location=0) in vec2 aPosition;
+  \\layout(location=1) in vec2 aUV;
+  \\struct Instance {
+  \\  vec2 position;
+  \\  vec2 scale;
+  \\  vec4 color;
+  \\  vec4 uv;
+  \\  uint kind;
+  \\  float offset;
+  \\  uint pad0; uint pad1;
+  \\};
+  \\layout(std430, binding=0) readonly buffer InstanceBuffer {
+  \\  Instance instances[];
+  \\};
   \\uniform vec2 uScreenSize;
-  \\out vec2 vLocalPos;
-  \\out vec2 vHalfSize;
-  \\out float vRadius;
-  \\out vec4 vFillColor;
-  \\out vec4 vBorderColor;
-  \\out float vMode;
-  \\out float vFillRatio;
+  \\out vec2 vUV;
+  \\out vec4 vColor;
+  \\out vec2 vSize;
+  \\flat out uint vShape;
+  \\out float vOffset;
+  \\out vec4 vAtlasRegion;
   \\void main(){
-  \\  vec2 ndc = (aScreenPos / uScreenSize) * 2.0 - 1.0;
-  \\  ndc.y = -ndc.y;
-  \\  gl_Position = vec4(ndc, 0.0, 1.0);
-  \\  vLocalPos = aLocalPos;
-  \\  vHalfSize = aHalfSize;
-  \\  vRadius = aRadius;
-  \\  vFillColor = aFillColor;
-  \\  vBorderColor = aBorderColor;
-  \\  vMode = aMode;
-  \\  vFillRatio = aFillRatio;
+  \\  Instance shape = instances[gl_InstanceID];
+  \\  vec2 pixel     = aPosition * shape.scale + shape.position;
+  \\  vec2 ndc       = (pixel / uScreenSize) * 2.0 - 1.0;
+  \\  ndc.y          = -ndc.y;
+  \\  gl_Position    = vec4(ndc, 0.0, 1.0);
+  \\  vUV            = aUV;
+  \\  vColor         = shape.color;
+  \\  vSize          = shape.scale;
+  \\  vShape         = shape.kind;
+  \\  vOffset        = shape.offset;
+  \\  vAtlasRegion   = shape.uv;
   \\}
 ;
 
 pub const ui_frag_src: [:0]const u8 =
-  \\#version 330 core
-  \\in vec2 vLocalPos;
-  \\in vec2 vHalfSize;
-  \\in float vRadius;
-  \\in vec4 vFillColor;
-  \\in vec4 vBorderColor;
-  \\in float vMode;
-  \\in float vFillRatio;
+  \\#version 460 core
+  \\in vec2 vUV;
+  \\in vec4 vColor;
+  \\in vec2 vSize;
+  \\flat in uint vShape;
+  \\in float vOffset;
+  \\in vec4 vAtlasRegion;
+  \\uniform sampler2D uAtlas;
   \\out vec4 FragColor;
+  \\float sdf_circle(vec2 point, float radius){
+  \\  return length(point) - radius;
+  \\}
+  \\float sdf_triangle(vec2 point, float radius){
+  \\  return max(abs(point.x) * 0.866 - point.y * 0.5 - radius * 0.25, point.y - radius * 0.5);
+  \\}
+  \\float sdf_rectangle(vec2 point, vec2 half_size){
+  \\  vec2 d = abs(point) - half_size;
+  \\  return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);
+  \\}
+  \\float sdf_shape(uint shape, vec2 pixel, vec2 size, float offset){
+  \\  if(shape == 2u) return sdf_triangle(pixel, min(size.x, size.y)) - offset;
+  \\  if(shape == 3u) return sdf_rectangle(pixel, size * 0.5) - offset;
+  \\  return sdf_circle(pixel, min(size.x, size.y) * 0.5) - offset;
+  \\}
   \\void main(){
-  \\  vec2 d = abs(vLocalPos) - vHalfSize + vec2(vRadius);
-  \\  float dist = length(max(d, 0.0)) + min(max(d.x, d.y), 0.0) - vRadius;
-  \\  float alpha = 1.0 - smoothstep(-0.5, 0.5, dist);
-  \\  if (alpha < 0.001) discard;
-  \\  vec4 color = vFillColor;
-  \\  if (vMode > 0.5 && vMode < 1.5) {
-  \\    float fill_edge = -vHalfSize.x + 2.0 * vHalfSize.x * vFillRatio;
-  \\    float filled = smoothstep(fill_edge + 0.5, fill_edge - 0.5, vLocalPos.x);
-  \\    color = mix(vBorderColor, vFillColor, filled);
-  \\  } else if (vMode > 1.5) {
-  \\    float border_alpha = 1.0 - smoothstep(0.5, 1.5, abs(dist));
-  \\    color = vBorderColor;
-  \\    color.a *= border_alpha;
+  \\  vec2  centered = vUV - 0.5;
+  \\  vec2  pixel    = centered * vSize;
+  \\  float dist     = sdf_shape(vShape, pixel, vSize, vOffset);
+  \\  float edge     = fwidth(dist);
+  \\  float alpha    = 1.0 - smoothstep(-edge, edge, dist);
+  \\  vec4  base     = vColor;
+  \\  if (vAtlasRegion.z > 0.0) {
+  \\    vec2 atlas_uv = vUV * vAtlasRegion.zw + vAtlasRegion.xy;
+  \\    base.rgb *= texture(uAtlas, atlas_uv).rgb;
   \\  }
-  \\  color.a *= alpha;
-  \\  FragColor = color;
+  \\  FragColor = vec4(base.rgb, base.a * alpha);
   \\}
 ;
