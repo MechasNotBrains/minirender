@@ -12,8 +12,8 @@
             .hash = "mmath-0.0.0-SaMxXq1HAwCXXDkElxRjx7vQg2oPqbgLfdJ7qrL6rhG4",
         },
         .mcam = .{
-            .url = "git+https://codeberg.org/heysokam/mcam#6bfd1dfded31eefd9f42c27da0c827db2d0ad4c7",
-            .hash = "mcam-0.0.0-HBSODLpOAADJgICiHTou1atA4ymxj56TTikd7sx970qP",
+            .url = "git+https://codeberg.org/heysokam/mcam#600cb3bef5055f9e4527b1261f0135e12bcccd53",
+            .hash = "mcam-0.0.0-HBSODLpOAAAc564eXCZET73i3TwjZaayA_CnU6i07JAf",
         },
         .msys = .{
             .url = "git+https://codeberg.org/heysokam/msys#748fe5dcab8e9df3367eddcace414c94c3ae46b0",
@@ -24,12 +24,12 @@
             .hash = "mgl-0.0.0-UGt1UB76DQB2Y1o1K7YzAW8EDjfC4dYNE-g9jrorEWby",
         },
         .minp = .{
-            .url = "git+https://codeberg.org/heysokam/minp#da7be7e6a9e4693b67ecdc0e21ba6fcb2a1d93dc",
-            .hash = "minp-0.0.0-0wM5t4p-AABuXcTvvVf8AEQHUCj8vs4xcbZNHo_HRwFY",
+            .url = "git+https://codeberg.org/heysokam/minp#e682f8dd88b60d03839546732042f60b9aac2318",
+            .hash = "minp-0.0.0-0wM5t4p-AABbCkPxSQjzGHZV5dpd0gWg92ib7mW_Jfpp",
         },
         .mui = .{
-            .url = "git+https://codeberg.org/heysokam/mui#b1a4f7a30733b25b45c1c02b0d7c1e8c11bd43d8",
-            .hash = "mui-0.0.0-5UxUhU_JAAAOGuosstmVKw0sLLHoOPD_dRWB19hCloiv",
+            .url = "git+https://codeberg.org/heysokam/mui#5c1381069daa5ab0ea599ee2b52ccdb50c655fef",
+            .hash = "mui-0.0.0-5UxUhU_JAAC_pjENQUdiaofkKhckf6kJe88NKg9SFr2n",
         },
     },
     .paths = .{
