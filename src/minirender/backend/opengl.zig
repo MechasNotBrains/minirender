@@ -48,7 +48,7 @@ pub const Type = struct {
   geometry_vbo             :gl.Buffer      = .{},
   geometry_ebo             :gl.Buffer      = .{},
   instance_vbo             :gl.Buffer      = .{},
-  indirect_buffer          :gl.Buffer      = .{},
+  indirect_buffer          :gl.Buffer      = .{ .target = .draw_indirect },
   view_projection_location :gl.Uniform     = .{},
   atlas_location           :gl.Uniform     = .{},
   textured_location        :gl.Uniform     = .{},
@@ -302,7 +302,7 @@ pub const Type = struct {
     gl.state.polygon_offset.set(1.0, 1.0);
 
     if (R.live_command_count > 0) {
-      R.indirect_buffer.bind(.draw_indirect);
+      R.indirect_buffer.bind();
       gl.draw.multi_elements_indirect(.triangles, .unsigned_int, R.live_command_count, 0);
     }
 
@@ -332,7 +332,7 @@ pub const Type = struct {
   fn ensure_buffer (buffer :*gl.Buffer, needed :usize) void {
     if (buffer.id != 0 and buffer.size >= needed) return;
     if (buffer.id != 0) buffer.delete();
-    buffer.* = gl.Buffer.create(.{ .storage_dynamic = true }, @max(needed, 1024));
+    buffer.* = gl.Buffer.create(@max(needed, 1024), .{ .target = buffer.target });
   }
   //__________________
   /// @descr
