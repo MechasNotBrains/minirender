@@ -27,6 +27,10 @@
             .url = "git+https://codeberg.org/heysokam/minp#da7be7e6a9e4693b67ecdc0e21ba6fcb2a1d93dc",
             .hash = "minp-0.0.0-0wM5t4p-AABuXcTvvVf8AEQHUCj8vs4xcbZNHo_HRwFY",
         },
+        .mui = .{
+            .url = "git+https://codeberg.org/heysokam/mui#b1a4f7a30733b25b45c1c02b0d7c1e8c11bd43d8",
+            .hash = "mui-0.0.0-5UxUhU_JAAAOGuosstmVKw0sLLHoOPD_dRWB19hCloiv",
+        },
     },
     .paths = .{
         "src/minirender",
