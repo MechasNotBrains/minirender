@@ -437,29 +437,25 @@ pub const Type = struct {
     }
 
     // Collect live shapes and compute offsets
-    var live_shape_ids = R.A.alloc(u32, max_shape_slots) catch return;
+    var live_shape_ids = R.A.alloc(minirender.Shape.Id, max_shape_slots) catch return;
     defer R.A.free(live_shape_ids);
     var shape_to_offset = R.A.alloc(u32, max_shape_slots) catch return;
     defer R.A.free(shape_to_offset);
     var live_shape_count :u32 = 0;
     var running_offset :u32 = 0;
 
-    for (0..max_shape_slots) |slot| {
-      if (shape_counts[slot] == 0) continue;
-      if (R.shapes.data.items[slot].alpha) continue;
-      live_shape_ids[live_shape_count] = @intCast(slot);
-      shape_to_offset[slot] = running_offset;
-      running_offset += shape_counts[slot];
-      live_shape_count += 1;
-    }
-    R.opaque_command_count = live_shape_count;
-    for (0..max_shape_slots) |slot| {
-      if (shape_counts[slot] == 0) continue;
-      if (!R.shapes.data.items[slot].alpha) continue;
-      live_shape_ids[live_shape_count] = @intCast(slot);
-      shape_to_offset[slot] = running_offset;
-      running_offset += shape_counts[slot];
-      live_shape_count += 1;
+    for ([2]bool{ false, true }) |alpha_pass| {
+      var shapes = R.shapes.pairs();
+      while (shapes.next()) |entry| {
+        const slot = entry.key.id;
+        if (shape_counts[slot] == 0) continue;
+        if (entry.value.alpha != alpha_pass) continue;
+        live_shape_ids[live_shape_count] = entry.key;
+        shape_to_offset[slot] = running_offset;
+        running_offset += shape_counts[slot];
+        live_shape_count += 1;
+      }
+      if (!alpha_pass) R.opaque_command_count = live_shape_count;
     }
 
     if (live_shape_count == 0) {
@@ -491,8 +487,8 @@ pub const Type = struct {
     const commands = R.A.alloc(gl.draw.IndirectCommand, live_shape_count) catch return;
     defer R.A.free(commands);
 
-    for (live_shape_ids[0..live_shape_count], 0..) |slot, command_index| {
-      const shape_key = minirender.Shape.Id{ .id = slot, .version = R.shapes.refs.items[slot].version };
+    for (live_shape_ids[0..live_shape_count], 0..) |shape_key, command_index| {
+      const slot = shape_key.id;
       const shape_data = R.shapes.get(shape_key) orelse continue;
       commands[command_index] = .{
         .index_count    = shape_data.index_count,
