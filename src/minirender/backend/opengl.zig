@@ -131,6 +131,7 @@ pub const Type = struct {
     result.vao.attribute(2, 2, .float, 0, 6  * @sizeOf(f32));    // uv
     result.vao.attribute(3, 2, .float, 0, 8  * @sizeOf(f32));    // atlas_offset
     result.vao.attribute(4, 2, .float, 0, 10 * @sizeOf(f32));    // atlas_scale
+    result.vao.attribute(10, 4, .float, 0, 12 * @sizeOf(f32));   // color
     // Binding 1: per-instance data (divisor 1)
     result.vao.attribute(5, 4, .float, 1, 0);                    // world row 0
     result.vao.attribute(6, 4, .float, 1, 16);                   // world row 1

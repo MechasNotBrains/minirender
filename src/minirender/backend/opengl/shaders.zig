@@ -11,6 +11,7 @@ pub const vert_src: [:0]const u8 =
   \\layout(location=4) in vec2 aAtlasScale;
   \\layout(location=5) in mat4 aWorld;
   \\layout(location=9) in vec4 aColor;
+  \\layout(location=10) in vec4 aVertexColor;
   \\uniform mat4 uViewProjection;
   \\out vec3 vNormal;
   \\out vec2 vUV;
@@ -23,7 +24,7 @@ pub const vert_src: [:0]const u8 =
   \\  vUV = aUV;
   \\  vAtlasOffset = aAtlasOffset;
   \\  vAtlasScale = aAtlasScale;
-  \\  vColor = aColor;
+  \\  vColor = aColor * aVertexColor;
   \\}
 ;
 

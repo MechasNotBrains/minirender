@@ -35,6 +35,7 @@ pub const Vertex = extern struct {
   uv           :[2]f32 = .{ 0, 0 },
   atlas_offset :[2]f32 = .{ 0, 0 },
   atlas_scale  :[2]f32 = .{ 1, 1 },
+  color        :[4]f32 = .{ 1, 1, 1, 1 },
 };
 
 pub const GpuInstanceData = extern struct {
