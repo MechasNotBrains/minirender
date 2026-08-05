@@ -41,13 +41,13 @@ pub const frag_src: [:0]const u8 =
   \\void main(){
   \\  vec3 light_direction = normalize(vec3(0.3, 0.7, 1.0));
   \\  float diffuse = max(dot(normalize(vNormal), light_direction), 0.0);
-  \\  float ambient = 0.15;
+  \\  float ambient = 0.40;  // TODO: Get from config instead
   \\  vec4 base_color = vColor;
   \\  if (uTextured && vAtlasScale.x > 0.0) {
   \\    vec2 atlas_uv = fract(vUV) * vAtlasScale + vAtlasOffset;
   \\    base_color.rgb *= texture(uAtlas, atlas_uv).rgb;
   \\  }
-  \\  FragColor = vec4(base_color.rgb * (ambient + diffuse * 0.85), base_color.a);
+  \\  FragColor = vec4(base_color.rgb * (ambient + diffuse * (1.0-ambient)), base_color.a);
   \\}
 ;
 
