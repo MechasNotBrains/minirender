@@ -150,6 +150,16 @@ pub const Type = struct {
     .vk  => @panic("vulkan backend not implemented"),
   };}
   //__________________
+  pub fn shape_alpha (
+      R     : *Type,
+      verts : []const Vertex,
+      inds  : []const u32,
+    ) !Shape.Id { return switch (R.backend) {
+    .gl  => |*backend| backend.shape_alpha(verts, inds),
+    .cvk => @panic("cvulkan backend not implemented"),
+    .vk  => @panic("vulkan backend not implemented"),
+  };}
+  //__________________
   pub fn instance (
       R     : *Type,
       id    : Shape.Box.Key,

@@ -15,6 +15,8 @@ pub const Shape = struct {
   /// Without it there is no telling where one shape's vertices end once another between them
   /// has been let go of.
   vertex_count :u32 = 0,
+  /// Whether the shape holds see-through faces, drawn after every opaque one.
+  alpha        :bool = false,
   pub const Box = mstd.Box(Shape);
   pub const Id  = Box.Key;
 };
