@@ -320,13 +320,13 @@ pub const Type = struct {
     if (R.live_command_count > 0) {
       R.indirect_buffer.bind();
       if (R.opaque_command_count > 0) {
-        gl.draw.multi_elements_indirect(.triangles, .unsigned_int, R.opaque_command_count, 0);
+        gl.draw.multi_elements_indirect(.triangles, .unsigned_int, R.opaque_command_count, 0, 0);
       }
       const alpha_command_count = R.live_command_count - R.opaque_command_count;
       if (alpha_command_count > 0) {
         gl.state.depth.set(false);
         gl.draw.multi_elements_indirect(.triangles, .unsigned_int, alpha_command_count,
-          R.opaque_command_count * @sizeOf(gl.draw.IndirectCommand));
+          R.opaque_command_count * @sizeOf(gl.draw.IndirectCommand), 0);
         gl.state.depth.set(true);
       }
     }
