@@ -28,8 +28,8 @@
             .hash = "minp-0.0.0-0wM5t4p-AABbCkPxSQjzGHZV5dpd0gWg92ib7mW_Jfpp",
         },
         .mui = .{
-            .url = "git+https://codeberg.org/heysokam/mui#842c27b7d030e39ee65e9404cde338a1db246308",
-            .hash = "mui-0.0.0-5UxUhU_JAAArhMWC-Ogra0Pj2yZBFEW9zAPYteN-G5D_",
+            .url = "git+https://codeberg.org/heysokam/mui#56b25085d979c8b3a93a50fb5b1ee035d5cbcd8e",
+            .hash = "mui-0.0.0-5UxUhU_JAABrpHVt-Vx0X8S_AO-8SGP0CM3TEedeYlbM",
         },
     },
     .paths = .{
