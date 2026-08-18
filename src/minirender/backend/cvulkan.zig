@@ -3,12 +3,18 @@
 //:_______________________________________________________________________
 pub const render = @This();
 pub const Render = @This().Type;
+// @deps minirender
+const minirender = struct {
+  const Store = @import("../store.zig").Store;
+};
 
 //______________________________________
 // @section Object Fields
 //____________________________
 pub const Type = struct {
-  todo:bool=true,
+  // CPU data
+  store :minirender.Store,
+
   //______________________________________
   // @section Create/Destroy
   //____________________________
@@ -19,4 +25,3 @@ pub const Type = struct {
   //____________________________
   // TODO:
 };
-

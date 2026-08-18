@@ -21,6 +21,9 @@ pub const geometry   = @import("./minirender/geometry.zig");
 pub const Vertex     = minirender.geometry.Vertex;
 pub const Shape      = minirender.geometry.Shape;
 pub const Instance   = minirender.geometry.Instance;
+pub const store      = @import("./minirender/store.zig");
+pub const Store      = minirender.store.Store;
+pub const Command    = minirender.store.Command;
 pub const Atlas      = @import("./minirender/atlas.zig");
 // UI
 pub const ui         = @import("./minirender/ui.zig");

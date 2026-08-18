@@ -5,8 +5,6 @@ pub const render = @This();
 pub const Render = @This().Type;
 // @deps std
 const std = @import("std");
-// @deps mstd
-const mstd = @import("mstd");
 // @deps minirender
 const gl = @import("mgl").v4;
 const mcam = @import("mcam");
@@ -19,6 +17,8 @@ const minirender = struct {
   const GpuInstanceData = @import("../geometry.zig").GpuInstanceData;
   const Shape           = @import("../geometry.zig").Shape;
   const Instance        = @import("../geometry.zig").Instance;
+  const Store           = @import("../store.zig").Store;
+  const Command         = @import("../store.zig").Command;
   const shaders         = @import("./opengl/shaders.zig");
 };
 
@@ -37,10 +37,7 @@ pub const Type = struct {
   color_clear :gl.Color= .{ .r= 0.1, .g= 0.1, .b= 0.15 },
 
   // CPU data
-  shapes     :minirender.Shape.Box,
-  instances  :minirender.Instance.Box,
-  vertices   :mstd.seq(minirender.Vertex),
-  indices    :mstd.seq(u32),
+  store :minirender.Store,
 
   // GPU resources
   program                  :gl.Shader      = undefined,
@@ -65,11 +62,7 @@ pub const Type = struct {
   // Texture
   textured           :bool = false,
 
-  // Dirty flags
-  geometry_dirty     :bool = false,
-  /// Whether a shape has been let go of, leaving a gap in the geometry buffers to close.
-  geometry_gapped    :bool = false,
-  instances_dirty    :bool = false,
+  // Draw state
   live_command_count   :u32 = 0,
   opaque_command_count :u32 = 0,
 
@@ -78,10 +71,7 @@ pub const Type = struct {
   // @section Create/Destroy
   //____________________________
   pub fn destroy (R :*Type) void {
-    R.shapes.destroy();
-    R.instances.destroy();
-    R.vertices.destroy();
-    R.indices.destroy();
+    R.store.destroy();
     R.program.delete();
     R.line_program.delete();
     R.vao.delete();
@@ -99,11 +89,8 @@ pub const Type = struct {
   //__________________
   pub fn create (A :std.mem.Allocator, args :create_args) !Type {
     var result = Type{
-      .A = A,
-      .shapes    = .create_empty(A),
-      .instances = .create_empty(A),
-      .vertices  = .create_empty(A),
-      .indices   = .create_empty(A),
+      .A     = A,
+      .store = .create(A),
     };
 
     if (args.debug) gl.debug.enable(.{});
@@ -156,96 +143,6 @@ pub const Type = struct {
   //______________________________________
   // @section Geometry
   //____________________________
-  pub fn shape (
-      R     : *Type,
-      verts : []const minirender.Vertex,
-      inds  : []const u32,
-    ) !minirender.Shape.Id { return R.shape_add(verts, inds, false); }
-  //__________________
-  pub fn shape_alpha (
-      R     : *Type,
-      verts : []const minirender.Vertex,
-      inds  : []const u32,
-    ) !minirender.Shape.Id { return R.shape_add(verts, inds, true); }
-  //__________________
-  fn shape_add (
-      R     : *Type,
-      verts : []const minirender.Vertex,
-      inds  : []const u32,
-      alpha : bool,
-    ) !minirender.Shape.Id {
-    const base_vertex :i32 = @intCast(R.vertices.len());
-    const first_index :u32 = @intCast(R.indices.len());
-
-    try R.vertices.add_many(verts);
-    try R.indices.add_many(inds);
-
-    const result = try R.shapes.add(.{
-      .base_vertex  = base_vertex,
-      .first_index  = first_index,
-      .index_count  = @intCast(inds.len),
-      .vertex_count = @intCast(verts.len),
-      .alpha        = alpha,
-    });
-
-    R.geometry_dirty = true;
-    return result;
-  }
-  //__________________
-  /// @descr
-  ///  Lets go of a shape, along with the geometry it owns.
-  ///
-  ///  Shapes are laid end to end in one pair of buffers, so letting one go leaves a gap in
-  ///  the middle of them. The gap is closed on the next upload, which is also where every
-  ///  shape learns where its geometry ended up.
-  pub fn shape_remove (R :*Type, id :minirender.Shape.Id) void {
-    if (R.shapes.get(id) == null) return;
-    R.shapes.rmv(id);
-    R.geometry_gapped = true;
-    R.geometry_dirty  = true;
-  }
-  //__________________
-  pub fn instance (
-      R     : *Type,
-      id    : minirender.Shape.Id,
-      world : minirender.Mat4,
-      color : minirender.Color,
-    ) !minirender.Instance.Id {
-    if (R.shapes.get(id) == null) return error.InvalidShapeId;
-
-    const key = try R.instances.add(.{
-      .shape = id,
-      .world = world,
-      .color = color,
-    });
-
-    R.instances_dirty = true;
-    return key;
-  }
-  //__________________
-  /// @descr
-  ///  Drops an instance, so whatever it was drawing stops being drawn.
-  ///  The instance data is packed afresh on the next sync, so nothing else has to move.
-  pub fn instance_remove (R :*Type, id :minirender.Instance.Id) void {
-    if (R.instances.get(id) == null) return;
-    R.instances.rmv(id);
-    R.instances_dirty = true;
-  }
-  //__________________
-  pub fn reassign_instance (
-      R     : *Type,
-      id    : minirender.Instance.Id,
-      S     : minirender.Shape.Id,
-      world : minirender.Mat4,
-      color : minirender.Color,
-    ) void {
-    const inst = R.instances.get(id) orelse return;
-    inst.shape = S;
-    inst.world = world;
-    inst.color = color;
-    R.instances_dirty = true;
-  }
-  //__________________
   pub fn set_selection_lines (R :*Type, positions :[]const [3]f32, color :[4]f32) void {
     const byte_size = positions.len * @sizeOf([3]f32);
     ensure_buffer(&R.line_vbo, byte_size);
@@ -265,13 +162,7 @@ pub const Type = struct {
       world : minirender.Mat4,
       color : minirender.Color,
     ) void {
-    const inst = R.instances.get(id) orelse return;
-    inst.world = world;
-    inst.color = color;
-    const gpu_index = inst.gpu_offset orelse {
-      R.instances_dirty = true;
-      return;
-    };
+    const gpu_index = R.store.instance_update(id, world, color) orelse return;
     const gpu_entry = [1]minirender.GpuInstanceData{.{
       .world = minirender.mat4_to_f32(&world),
       .color = minirender.vec4_to_f32(&color),
@@ -288,15 +179,15 @@ pub const Type = struct {
       R      : *Type,
       camera : *const mcam.Camera,
     ) void {
-    if (R.geometry_dirty) {
+    if (R.store.geometry_dirty) {
       R.upload_geometry();
-      R.geometry_dirty  = false;
-      R.instances_dirty = true;
+      R.store.geometry_dirty  = false;
+      R.store.instances_dirty = true;
     }
 
-    if (R.instances_dirty) {
+    if (R.store.instances_dirty) {
       R.upload_instances();
-      R.instances_dirty = false;
+      R.store.instances_dirty = false;
     }
 
     R.program.enable();
@@ -326,7 +217,7 @@ pub const Type = struct {
       if (alpha_command_count > 0) {
         gl.state.depth.set(false);
         gl.draw.multi_elements_indirect(.triangles, .unsigned_int, alpha_command_count,
-          R.opaque_command_count * @sizeOf(gl.draw.IndirectCommand), 0);
+          R.opaque_command_count * @sizeOf(minirender.Command), 0);
         gl.state.depth.set(true);
       }
     }
@@ -360,43 +251,13 @@ pub const Type = struct {
     buffer.* = gl.Buffer.create(@max(needed, 1024), .{ .target = buffer.target });
   }
   //__________________
-  /// @descr
-  ///  Lays the geometry of every shape still held down end to end again, closing the gaps
-  ///  left by the ones let go of, and tells each shape where its own ended up.
-  fn pack_geometry (R :*Type) void {
-    var packed_vertices = mstd.seq(minirender.Vertex).create_empty(R.A);
-    var packed_indices  = mstd.seq(u32).create_empty(R.A);
-
-    const old_vertices = R.vertices.data();
-    const old_indices  = R.indices.data();
-
-    for (R.shapes.mitems()) |*held| {
-      const vertex_from :usize = @intCast(held.base_vertex);
-      const vertex_upto = vertex_from + held.vertex_count;
-      const index_upto  = held.first_index + held.index_count;
-      if (vertex_upto > old_vertices.len or index_upto > old_indices.len) continue;
-
-      const moved_base  :i32 = @intCast(packed_vertices.len());
-      const moved_first :u32 = @intCast(packed_indices.len());
-      packed_vertices.add_many(old_vertices[vertex_from..vertex_upto]) catch return;
-      packed_indices.add_many(old_indices[held.first_index..index_upto]) catch return;
-      held.base_vertex = moved_base;
-      held.first_index = moved_first;
-    }
-
-    R.vertices.destroy();
-    R.indices.destroy();
-    R.vertices = packed_vertices;
-    R.indices  = packed_indices;
-  }
-  //__________________
   fn upload_geometry (R :*Type) void {
-    if (R.geometry_gapped) {
-      R.pack_geometry();
-      R.geometry_gapped = false;
+    if (R.store.geometry_gapped) {
+      R.store.pack_geometry();
+      R.store.geometry_gapped = false;
     }
-    const vertex_data = R.vertices.data();
-    const index_data  = R.indices.data();
+    const vertex_data = R.store.vertices.data();
+    const index_data  = R.store.indices.data();
     if (vertex_data.len == 0) return;
 
     const vbo_size = vertex_data.len * @sizeOf(minirender.Vertex);
@@ -414,102 +275,23 @@ pub const Type = struct {
   fn upload_instances (R :*Type) void {
     // Nothing left to draw has to be said, not left unsaid: the commands from last time are
     // still in the buffer, and returning without touching them draws what is gone.
-    const all_instances = R.instances.items();
-    if (all_instances.len == 0) {
+    const draws = R.store.build() orelse {
       R.live_command_count = 0;
       return;
-    }
+    };
+    defer draws.destroy();
 
-    const max_shape_slots = R.shapes.refs.items.len;
-    if (max_shape_slots == 0) {
-      R.live_command_count = 0;
-      return;
-    }
-
-    // O(n) pass 1: count instances per shape slot
-    const shape_counts = R.A.alloc(u32, max_shape_slots) catch return;
-    defer R.A.free(shape_counts);
-    @memset(shape_counts, 0);
-
-    for (all_instances) |inst| {
-      if (R.shapes.get(inst.shape) == null) continue;
-      shape_counts[inst.shape.id] += 1;
-    }
-
-    // Collect live shapes and compute offsets
-    var live_shape_ids = R.A.alloc(minirender.Shape.Id, max_shape_slots) catch return;
-    defer R.A.free(live_shape_ids);
-    var shape_to_offset = R.A.alloc(u32, max_shape_slots) catch return;
-    defer R.A.free(shape_to_offset);
-    var live_shape_count :u32 = 0;
-    var running_offset :u32 = 0;
-
-    for ([2]bool{ false, true }) |alpha_pass| {
-      var shapes = R.shapes.pairs();
-      while (shapes.next()) |entry| {
-        const slot = entry.key.id;
-        if (shape_counts[slot] == 0) continue;
-        if (entry.value.alpha != alpha_pass) continue;
-        live_shape_ids[live_shape_count] = entry.key;
-        shape_to_offset[slot] = running_offset;
-        running_offset += shape_counts[slot];
-        live_shape_count += 1;
-      }
-      if (!alpha_pass) R.opaque_command_count = live_shape_count;
-    }
-
-    if (live_shape_count == 0) {
-      R.live_command_count = 0;
-      return;
-    }
-    const total_instances :usize = running_offset;
-
-    // O(n) pass 2: pack instance data grouped by shape
-    const gpu_data = R.A.alloc(minirender.GpuInstanceData, total_instances) catch return;
-    defer R.A.free(gpu_data);
-    const write_heads = R.A.alloc(u32, max_shape_slots) catch return;
-    defer R.A.free(write_heads);
-    @memcpy(write_heads[0..max_shape_slots], shape_to_offset[0..max_shape_slots]);
-
-    for (R.instances.mitems()) |*inst| {
-      if (R.shapes.get(inst.shape) == null) continue;
-      const slot = inst.shape.id;
-      const gpu_index = write_heads[slot];
-      gpu_data[gpu_index] = .{
-        .world = minirender.mat4_to_f32(&inst.world),
-        .color = minirender.vec4_to_f32(&inst.color),
-      };
-      inst.gpu_offset = gpu_index;
-      write_heads[slot] += 1;
-    }
-
-    // Build indirect commands
-    const commands = R.A.alloc(gl.draw.IndirectCommand, live_shape_count) catch return;
-    defer R.A.free(commands);
-
-    for (live_shape_ids[0..live_shape_count], 0..) |shape_key, command_index| {
-      const slot = shape_key.id;
-      const shape_data = R.shapes.get(shape_key) orelse continue;
-      commands[command_index] = .{
-        .index_count    = shape_data.index_count,
-        .instance_count = shape_counts[slot],
-        .first_index    = shape_data.first_index,
-        .base_vertex    = shape_data.base_vertex,
-        .base_instance  = shape_to_offset[slot],
-      };
-    }
-
-    // Upload
-    const instance_size = total_instances * @sizeOf(minirender.GpuInstanceData);
+    const instance_size = draws.instances.len * @sizeOf(minirender.GpuInstanceData);
     ensure_buffer(&R.instance_vbo, instance_size);
-    R.instance_vbo.upload(gpu_data, 0);
+    R.instance_vbo.upload(draws.instances, 0);
     R.vao.buffer(1, R.instance_vbo, INSTANCE_STRIDE);
 
-    const indirect_size = live_shape_count * @sizeOf(gl.draw.IndirectCommand);
+    const indirect_size = draws.commands.len * @sizeOf(minirender.Command);
     ensure_buffer(&R.indirect_buffer, indirect_size);
-    R.indirect_buffer.upload(commands, 0);
+    R.indirect_buffer.upload(draws.commands, 0);
 
-    R.live_command_count = @intCast(live_shape_count);
+    R.opaque_command_count = draws.opaque_count;
+    R.live_command_count   = @intCast(draws.commands.len);
   }
 };
 

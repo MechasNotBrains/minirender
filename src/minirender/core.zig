@@ -14,6 +14,7 @@ const minp       = @import("minp");
 const minirender = struct {
   const Mat4     = @import("./math.zig").Mat4;
   const Color    = @import("./math.zig").Color;
+  const Store    = @import("./store.zig").Store;
   const opengl   = @import("./backend/opengl.zig");
   const cvulkan  = @import("./backend/cvulkan.zig");
   const vulkan   = @import("./backend/vulkan.zig");
@@ -140,50 +141,39 @@ pub const Type = struct {
   //______________________________________
   // @section Geometry
   //____________________________
+  /// @descr
+  ///  Returns the shapes and instances given to this renderer.
+  ///  Every backend keeps them the same way, so nothing about them is dispatched.
+  pub fn store (R :*Type) *minirender.Store { return switch (R.backend) {
+    .gl  => |*backend| &backend.store,
+    .cvk => |*backend| &backend.store,
+    .vk  => @panic("vulkan backend not implemented"),
+  };}
+  //__________________
   pub fn shape (
       R     : *Type,
       verts : []const Vertex,
       inds  : []const u32,
-    ) !Shape.Id { return switch (R.backend) {
-    .gl  => |*backend| backend.shape(verts, inds),
-    .cvk => @panic("cvulkan backend not implemented"),
-    .vk  => @panic("vulkan backend not implemented"),
-  };}
+    ) !Shape.Id { return R.store().shape_add(verts, inds, false); }
   //__________________
   pub fn shape_alpha (
       R     : *Type,
       verts : []const Vertex,
       inds  : []const u32,
-    ) !Shape.Id { return switch (R.backend) {
-    .gl  => |*backend| backend.shape_alpha(verts, inds),
-    .cvk => @panic("cvulkan backend not implemented"),
-    .vk  => @panic("vulkan backend not implemented"),
-  };}
+    ) !Shape.Id { return R.store().shape_add(verts, inds, true); }
   //__________________
   pub fn instance (
       R     : *Type,
       id    : Shape.Box.Key,
       world : minirender.Mat4,
       color : minirender.Color,
-    ) !Instance.Id { return switch (R.backend) {
-    .gl  => |*backend| backend.instance(id, world, color),
-    .cvk => @panic("cvulkan backend not implemented"),
-    .vk  => @panic("vulkan backend not implemented"),
-  };}
+    ) !Instance.Id { return R.store().instance_add(id, world, color); }
   //__________________
   /// @descr Drops an instance, so whatever it was drawing stops being drawn.
-  pub fn instance_remove (R :*Type, id :Instance.Id) void { switch (R.backend) {
-    .gl  => |*backend| backend.instance_remove(id),
-    .cvk => @panic("cvulkan backend not implemented"),
-    .vk  => @panic("vulkan backend not implemented"),
-  }}
+  pub fn instance_remove (R :*Type, id :Instance.Id) void { R.store().instance_remove(id); }
   //__________________
   /// @descr Lets go of a shape, along with the geometry it owns.
-  pub fn shape_remove (R :*Type, id :Shape.Id) void { switch (R.backend) {
-    .gl  => |*backend| backend.shape_remove(id),
-    .cvk => @panic("cvulkan backend not implemented"),
-    .vk  => @panic("vulkan backend not implemented"),
-  }}
+  pub fn shape_remove (R :*Type, id :Shape.Id) void { R.store().shape_remove(id); }
   //__________________
   pub fn reassign_instance (
       R     : *Type,
@@ -191,11 +181,7 @@ pub const Type = struct {
       S     : Shape.Id,
       world : minirender.Mat4,
       color : minirender.Color,
-    ) void { switch (R.backend) {
-    .gl  => |*backend| backend.reassign_instance(id, S, world, color),
-    .cvk => @panic("cvulkan backend not implemented"),
-    .vk  => @panic("vulkan backend not implemented"),
-  }}
+    ) void { R.store().instance_reassign(id, S, world, color); }
   //__________________
   pub fn set_selection_lines (
       R         : *Type,
