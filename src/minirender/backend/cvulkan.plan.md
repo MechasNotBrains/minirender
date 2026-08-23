@@ -29,6 +29,64 @@ Everything else (`shape`, `shape_alpha`, `shape_remove`, `instance`, `instance_r
 `reassign_instance`) is served by `minirender.Store` and never reaches a backend.
 
 
+## GPU-Driven Rendering
+
+The goal of this backend, in every sense of the term. Not the OpenGL renderer wearing Vulkan's API.
+
+### Principle
+
+The GPU decides what it draws. The CPU uploads data and submits one call.
+
+Instance data lives in storage buffers that the shader indexes itself. It is not handed to the
+shader by the fixed-function stage through a vertex binding marked per-instance. That
+distinction is the whole difference: a per-instance vertex binding can only deliver one struct
+per instance in lockstep, while a buffer the shader indexes can be read by any stage, in any
+order, by any invocation, and can be written by a compute pass before the draw runs.
+
+### Mechanism
+
+- **Instance data.** A `readonly buffer` indexed by `gl_InstanceIndex`.
+  `gl_InstanceIndex` already includes `firstInstance`, so a command that sets `firstInstance`
+  addresses its own slice of one shared buffer, with no shader-side arithmetic.
+- **Per-draw data.** `gl_DrawID` says which command inside a multi-draw is executing, so
+  per-shape data is a second buffer indexed by it. Needs `shaderDrawParameters`.
+- **Draw parameters.** `vkCmdDrawIndexedIndirect` reads `VkDrawIndexedIndirectCommand` from a
+  buffer. `Store.Command` is already field for field that struct.
+- **Draw count.** `vkCmdDrawIndexedIndirectCount` reads the number of commands from a buffer as
+  well, so a compute pass culls and writes how many survived. This is the step that makes the
+  renderer GPU-driven instead of GPU-fed: the CPU stops knowing how many draws happen.
+- **Materials.** Descriptor indexing addresses a texture array by an index carried in the
+  instance, rather than rebinding descriptors between draws.
+
+### What cvulkan already provides
+
+Every feature this needs is declarable today through `cvk_device_features_Required.user`, and is
+already checked by `cvk_device_features_supported` and combined by `cvk_device_features_merge`:
+
+| Feature                          | Version | Enables                                       |
+|:---------------------------------|:--------|:----------------------------------------------|
+| `multiDrawIndirect`              | 1.0     | `drawCount` above 1 in one indirect call      |
+| `drawIndirectFirstInstance`      | 1.0     | non-zero `firstInstance` in indirect commands |
+| `wideLines`                      | 1.0     | line width above 1.0                          |
+| `shaderDrawParameters`           | 1.1     | `gl_DrawID`, `gl_BaseInstance`                |
+| `drawIndirectCount`              | 1.2     | count sourced from a buffer                   |
+| `descriptorIndexing` and friends | 1.2     | bindless texture arrays                       |
+| `scalarBlockLayout`              | 1.2     | buffer layouts that match the source structs  |
+| `bufferDeviceAddress`            | 1.2     | raw pointers through push constants           |
+
+`cvk_descriptor_binding_create_args` takes an arbitrary `VkDescriptorType`, a `stage` mask, and
+`count`/`element`, so storage buffers and descriptor arrays need nothing added.
+`cvk_pipeline_compute_create` exists, and `mech/cvulkan/compute.c` already dispatches through
+barriers, so the culling pass has its foundation.
+
+### What is actually missing
+
+Only the command wrappers. Names still to be decided:
+
+- one over `vkCmdDrawIndexedIndirect`
+- one over `vkCmdDrawIndexedIndirectCount`
+
+
 ## Done
 
 - [x] Split the non-OpenGL behavior out of `backend/opengl.zig` into `minirender/store.zig`
@@ -43,22 +101,27 @@ Everything else (`shape`, `shape_alpha`, `shape_remove`, `instance`, `instance_r
 
 Items that have to be added to the C library and its Zig bindings before the backend can be written.
 
-- [ ] **Depth attachment binding.** `cvk_rendering_create_args` takes a `depth` format and
-      `cvk_Rendering` stores it, but `cvk_command_rendering_begin` hardcodes `colorAttachmentCount = 1`
-      and never fills `pDepthAttachment`. Needs a depth image view in
-      `cvk_command_rendering_begin_args`.
-- [ ] **Depth image helper.** A swapchain-sized depth image + view, with format selection and
-      recreation alongside `cvk_device_swapchain_recreate`.
-- [ ] **Indirect draw.** Only `cvk_command_draw` and `cvk_command_draw_indexed` exist.
-      `Store.build` already produces the command buffer contents, so this needs
-      `cvk_command_draw_indexed_indirect` over `vkCmdDrawIndexedIndirect`.
-      Without it the draw becomes a loop of `draw_indexed`, one call per shape.
-- [ ] **Input assembly args.** `cvk_pipeline_state_inputAssembly_defaults()` is triangle-list only.
-      The selection lines need `TOPOLOGY_LINE_LIST`.
-- [ ] **Rasterization args.** `cvk_pipeline_state_rasterization_defaults()` fixes `lineWidth` at 1.0
-      and `depthBiasEnable` at false. Lines are drawn at 2.0, and the shapes are drawn with a
-      depth bias of (1, 1).
-- [ ] **`wideLines` device feature.** Required for any line width above 1.0.
+- [x] **Depth attachment binding.** `cvk_Rendering` now holds `color` and `depth_stencil` as
+      `cvk_Attachment` values plus a `has_stencil` flag, and `cvk_command_rendering_begin` fills
+      `pDepthAttachment` and `pStencilAttachment` from them.
+- [x] **Index type.** `cvk_command_buffer_index_bind` takes `offset` and `kind` through an args
+      object. `VK_INDEX_TYPE_UINT16` is `0`, so omitting `kind` keeps the previous behavior.
+- [x] **Indirect draw.** `cvk_command_draw` now covers all six draw calls. `indirect_buffer` and
+      `count_buffer` being NULL or not selects direct/indirect/indirect-count, and `indexed`
+      selects the indexed variant. `cvk_command_draw_indexed` folded into it.
+
+Not missing:
+- `wideLines` is declarable through `features.user`, like every other feature in the
+  GPU-Driven Rendering table above.
+- Input assembly topology and rasterization line width / depth bias need no arguments.
+  The `_defaults()` results are meant to be changed by the caller, which is what the
+  examples already do for `cullMode`.
+- The depth image is assembled by the caller from `cvk_image_data_create`, `cvk_memory_create`,
+  `cvk_image_data_bind` and `cvk_image_view_create`, the same way every other image is.
+  `mech/cvulkan/indirect.c` does it.
+- `cvk_rendering_create` defaults the depth format to `D32_SFLOAT`, or `D32_SFLOAT_S8_UINT` when
+  stencil is on. The spec only guarantees one of `D32_SFLOAT_S8_UINT` / `D24_UNORM_S8_UINT`, so a
+  caller on hardware without the first passes its own format.
 
 
 ## Backend work
