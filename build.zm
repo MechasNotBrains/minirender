@@ -9,17 +9,22 @@ import @confy
 # @section Dependencies
 #_____________________________
 # mdk
-const mstd         = confy.dependency("mstd",  "https://codeberg.org/heysokam/mstd",  .())
-const mglfw        = confy.dependency("mglfw", "https://codeberg.org/heysokam/mglfw", .())
-const mgl          = confy.dependency("mgl",   "https://codeberg.org/heysokam/mgl",   .())
-const mmath        = confy.dependency("mmath", "https://codeberg.org/heysokam/mmath", (deps: &[mstd]))
-const minp         = confy.dependency("minp",  "https://codeberg.org/heysokam/minp",  (deps: &[mmath, mglfw]))
-const mcam         = confy.dependency("mcam",  "https://codeberg.org/heysokam/mcam",  (deps: &[mstd, mmath, minp]))
-const msys         = confy.dependency("msys",  "https://codeberg.org/heysokam/msys",  (deps: &[mstd, mglfw]))
+const mstd          = confy.dependency("mstd",    "https://codeberg.org/heysokam/mstd",        .())
+const mglfw         = confy.dependency("mglfw",   "https://codeberg.org/heysokam/mglfw",       .())
+const mgl           = confy.dependency("mgl",     "https://codeberg.org/heysokam/mgl",         .())
+const cvulkan_c     = confy.dependency("cvk",     "https://codeberg.org/heysokam/cvulkan",     .())
+const cvulkan       = confy.dependency("cvulkan", "https://codeberg.org/heysokam/cvulkan.ffi", (deps: &[cvulkan_c], src: "zig/src"))
+const mmath         = confy.dependency("mmath",   "https://codeberg.org/heysokam/mmath",       (deps: &[mstd]))
+const minp          = confy.dependency("minp",    "https://codeberg.org/heysokam/minp",        (deps: &[mmath, mglfw]))
+const mcam          = confy.dependency("mcam",    "https://codeberg.org/heysokam/mcam",        (deps: &[mstd,  mmath, minp]))
+const msys          = confy.dependency("msys",    "https://codeberg.org/heysokam/msys",        (deps: &[mstd,  mglfw]))
 # Renderer
-const minirender   = confy.dependency("minirender", "https://github.com/MechasNotBrains/minirender", (deps: &[mstd, mmath, mcam, msys, mgl, minp]))
-const dependencies = &[mstd, mglfw, mgl, mmath, minp, mcam, msys, minirender]
-const flags        = &["-lc", "-lglfw", "-lGL"]
+const minirender    = confy.dependency("minirender",    "https://github.com/MechasNotBrains/minirender", (deps: &[mstd, mmath, mcam, mglfw, msys, minp, cvulkan_c, cvulkan]))
+const minirender_gl = confy.dependency("minirender_gl", "https://github.com/MechasNotBrains/minirender", (deps: &[mstd, mmath, mcam, mglfw, msys, minp, mgl], entry: "minirender/core.gl.zig"))
+const dependencies  = &[mstd, mmath, minp, mcam, mglfw, msys, cvulkan_c, cvulkan, minirender]
+const deps_gl       = &[mstd, mmath, minp, mcam, mglfw, msys, mgl,                minirender_gl]
+const flags         = &["-lc", "-lglfw", "-lvulkan"]
+const flags_gl      = &["-lc", "-lglfw", "-lGL"]
 
 
 #_______________________________________
@@ -31,8 +36,18 @@ proc main (P :confy.Process): !void=
   cfg.dir.src  = "samples"
   cfg.verbose  = true
   cfg.zig.llvm = true
+  let cvulkan_src = try cvulkan.path_src(cfg, .())
+  let cvulkan_ffi = try confy.path.join(P.arena.allocator(), &[cvulkan_src.data(), "cvulkan/cvulkan.ffi.c"])
+  let cvk_src     = try cvulkan_c.path_src(cfg, .())
+  #___________________
+  # Build the OpenGL sample
+  var gl = try confy.Program("opengl.zig", (P:P, cfg: cfg, deps: deps_gl, flags: flags_gl))
+  try gl.build()
+  # try gl.run()
   # Build the WIP sample
   var wip = try confy.Program("wip.zig", (P:P, cfg: cfg, deps: dependencies, flags: flags))
+  try wip.src.files.add_one(cvulkan_ffi)
+  try wip.flags.add_many(&["-I", cvk_src.data()])
   try wip.build()
   try wip.run()
 

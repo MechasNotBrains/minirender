@@ -6,8 +6,9 @@ pub const Render = @This().Type;
 // @deps std
 const std = @import("std");
 // @deps minirender
-const gl = @import("mgl").v4;
-const mcam = @import("mcam");
+const gl         = @import("mgl").v4;
+const msys       = @import("msys");
+const mcam       = @import("mcam");
 const minirender = struct {
   const Mat4            = @import("../math.zig").Mat4;
   const mat4_to_f32     = @import("../math.zig").mat4_to_f32;
@@ -18,6 +19,7 @@ const minirender = struct {
   const Shape           = @import("../geometry.zig").Shape;
   const Instance        = @import("../geometry.zig").Instance;
   const Store           = @import("../store.zig").Store;
+  const Render          = @import("../core.gl.zig").Render;
   const Command         = @import("../store.zig").Command;
   const shaders         = @import("./opengl/shaders.zig");
 };
@@ -175,7 +177,7 @@ pub const Type = struct {
   //______________________________________
   // @section Sync
   //____________________________
-  pub fn sync (
+  pub fn draw (
       R      : *Type,
       camera : *const mcam.Camera,
     ) void {
@@ -294,4 +296,17 @@ pub const Type = struct {
     R.live_command_count   = @intCast(draws.commands.len);
   }
 };
+
+
+//______________________________________
+// @section Callbacks
+//____________________________
+pub fn resize (window :?*msys.glfw.Window, width :c_int, height :c_int) callconv(.c) void {
+  gl.viewport.set(0, 0, width, height);
+  if (width <= 0 or height <= 0) return;
+  const renderer :*minirender.Render = @ptrCast(@alignCast(msys.glfw.user.pointer.get(window) orelse return));
+  renderer.system.window.W = @intCast(width);
+  renderer.system.window.H = @intCast(height);
+  renderer.camera.aspect = @as(f32, @floatFromInt(width)) / @as(f32, @floatFromInt(height));
+}
 

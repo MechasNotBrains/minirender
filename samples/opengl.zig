@@ -4,7 +4,7 @@
 // @deps std
 const std = @import("std");
 // @deps minirender
-const minirender = @import("minirender");
+const minirender = @import("minirender_gl");
 const vec3       = minirender.vec3;
 
 
@@ -13,7 +13,7 @@ const vec3       = minirender.vec3;
 //____________________________
 pub fn main (P :std.process.Init) !void {
   var R = try minirender.Render.create(P.arena.allocator(), .{
-    .title = "minirender | Sample Cube",
+    .title = "minirender.gl | Sample Cube",
     .mouse = .disabled,
   });
   defer R.destroy();
