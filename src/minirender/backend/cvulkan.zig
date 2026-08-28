@@ -292,9 +292,7 @@ pub const Type = struct {
       pixels : []const u8,
       size   : minirender.atlas.Size,
     ) ?minirender.atlas.Handle {
-    const handle = R.atlas.load(&R.gpu, &R.sync, pixels, size) orelse return null;
-    R.textured = 1;
-    return handle;
+    return R.atlas.load(&R.gpu, &R.sync, pixels, size);
   }
   //__________________
   pub fn atlas_resize (R :*@This(), arg :minirender.atlas.Args) !void {
@@ -336,6 +334,13 @@ pub const Type = struct {
   //__________________
   pub fn atlas_scale  (R :*const @This(), handle :minirender.atlas.Handle) [2]f32 { return R.atlas.image_scale(handle); }
   pub fn atlas_offset (R :*const @This(), handle :minirender.atlas.Handle) [2]f32 { return R.atlas.cell_offset(handle); }
+  pub fn atlas_size   (R :*const @This(), handle :minirender.atlas.Handle) minirender.atlas.Size { return R.atlas.image_size(handle); }
+  pub fn atlas_len (R :*const @This()) u32 {
+    if (R.atlas.next_slot < minirender.font.glyphs_len) return 0;
+    return R.atlas.next_slot - minirender.font.glyphs_len;
+  }
+  //__________________
+  pub fn textured_set (R :*@This(), value :bool) void { R.textured = @intFromBool(value); }
 };
 
 

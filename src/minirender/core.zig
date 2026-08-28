@@ -192,6 +192,9 @@ pub const Type = struct {
   //__________________
   pub fn atlas_scale  (R :*const @This(), handle :atlas.Handle) [2]f32 { return R.backend.atlas_scale(handle); }
   pub fn atlas_offset (R :*const @This(), handle :atlas.Handle) [2]f32 { return R.backend.atlas_offset(handle); }
+  pub fn atlas_size   (R :*const @This(), handle :atlas.Handle) atlas.Size { return R.backend.atlas_size(handle); }
+  pub fn atlas_len    (R :*const @This()) u32 { return R.backend.atlas_len(); }
+  pub fn textured_set (R :*@This(), value :bool) void { R.backend.textured_set(value); }
   //__________________
   pub fn update_instance (
       R     : *@This(),
