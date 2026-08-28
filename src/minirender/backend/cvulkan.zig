@@ -106,6 +106,7 @@ pub const Type = struct {
   //__________________
   pub fn destroy (R :*@This()) void {
     R.gpu.device.wait();
+    R.sync.destroy(&R.gpu);
     R.store.destroy();
     R.ui.destroy(&R.gpu);
     R.cull.destroy(&R.gpu);
@@ -117,7 +118,6 @@ pub const Type = struct {
     R.target_draw.destroy();
     R.target_clear.destroy();
     R.geometry.destroy(&R.gpu);
-    R.sync.destroy(&R.gpu);
     R.gpu.destroy();
   }
 

@@ -189,6 +189,7 @@ pub fn create (gpu :*minirender.Gpu) Type {
 fn buffer_fit (B :*minirender.Buffer, gpu :*minirender.Gpu, bytes :usize) void {
   if (B.size >= bytes) return;
   const usage = B.usage;
+  gpu.device.wait();
   B.destroy(gpu);
   B.* = .create(gpu, bytes, usage, null);
 }

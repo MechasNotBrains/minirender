@@ -47,7 +47,6 @@ pub const Type = struct {
   camera          :mcam.Camera,
   backend         :minirender.backend.Cvulkan,
   userdata        :?*anyopaque,
-  close_on_escape :bool = true,
 
 
   //______________________________________
@@ -110,7 +109,6 @@ pub const Type = struct {
       }
     }
     R.camera.update(&R.camera, &R.input);
-    if (R.close_on_escape and R.input.key.active(.escape)) R.system.set_close(true);
     R.backend.update();
   }
 

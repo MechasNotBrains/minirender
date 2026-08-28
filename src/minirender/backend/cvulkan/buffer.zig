@@ -52,6 +52,7 @@ pub const Host = struct {
     if (bytes == 0) return;
     if (B.size >= bytes) return;
     const usage = B.usage;
+    gpu.device.wait();
     B.destroy(gpu);
     B.* = .{ .size = bytes, .usage = usage };
     B.data   = .create(.{
@@ -181,6 +182,7 @@ pub const Type = struct {
     ) void {
     if (B.size < bytes.len) {
       const usage = B.usage;
+      gpu.device.wait();
       B.destroy(gpu);
       B.* = .create(gpu, bytes.len, usage, @constCast(@ptrCast(bytes.ptr)));
       B.sync(gpu, S);
