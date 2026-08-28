@@ -114,6 +114,7 @@ pub const Type = struct {
       R.userdata = @ptrCast(R);
       R.system.window.user = R.userdata;
     }
+    R.input.start();
     var events = R.system.events();
     while (events.next()) |ev| {
       R.input.event(ev);
@@ -123,7 +124,6 @@ pub const Type = struct {
       }
     }
     R.camera.update(&R.camera, &R.input);
-    R.input.mouse.change = .create(0,0,0,0);
     if (R.close_on_escape and R.input.key.active(.escape)) R.system.set_close(true);
   }
 
