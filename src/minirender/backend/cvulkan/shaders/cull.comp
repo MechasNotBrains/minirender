@@ -1,0 +1,92 @@
+#version 460
+
+layout(local_size_x = 64) in;
+
+struct Instance {
+  mat4 world;
+  vec4 color;
+  vec4 center;
+  vec4 extent;
+};
+
+struct Command {
+  uint index_count;
+  uint instance_count;
+  uint first_index;
+  int  base_vertex;
+  uint base_instance;
+};
+
+layout(set = 0, binding = 0, std430) readonly buffer InstancesSrc {
+  Instance instances_src[];
+};
+
+layout(set = 0, binding = 1, std430) writeonly buffer InstancesDst {
+  Instance instances_dst[];
+};
+
+layout(set = 0, binding = 2, std430) readonly buffer CommandsSrc {
+  Command commands_src[];
+};
+
+layout(set = 0, binding = 3, std430) writeonly buffer CommandsDst {
+  Command commands_dst[];
+};
+
+layout(set = 0, binding = 4, std430) buffer Counters {
+  uint counter_opaque;
+  uint counter_alpha;
+  uint counter_instance;
+};
+
+layout(push_constant) uniform Push {
+  vec4 planes[6];
+  uint commands_len;
+  uint opaque_len;
+} push;
+
+bool visible (Instance self) {
+  vec3 center = (self.world * vec4(self.center.xyz, 1.0)).xyz;
+  vec3 axis_x = self.world[0].xyz;
+  vec3 axis_y = self.world[1].xyz;
+  vec3 axis_z = self.world[2].xyz;
+  for (uint id = 0u; id < 6u; ++id) {
+    vec3  normal = push.planes[id].xyz;
+    float radius = self.extent.x * abs(dot(normal, axis_x))
+                 + self.extent.y * abs(dot(normal, axis_y))
+                 + self.extent.z * abs(dot(normal, axis_z));
+    if (dot(normal, center) + push.planes[id].w + radius < 0.0) return false;
+  }
+  return true;
+}
+
+void main () {
+  uint command_id = gl_GlobalInvocationID.x;
+  if (command_id >= push.commands_len) return;
+
+  Command self  = commands_src[command_id];
+  uint    first = self.base_instance;
+  uint    last  = first + self.instance_count;
+
+  uint survivors = 0u;
+  for (uint id = first; id < last; ++id) {
+    if (visible(instances_src[id])) survivors += 1u;
+  }
+  if (survivors == 0u) return;
+
+  uint base = atomicAdd(counter_instance, survivors);
+  uint head = base;
+  for (uint id = first; id < last; ++id) {
+    if (!visible(instances_src[id])) continue;
+    instances_dst[head] = instances_src[id];
+    head += 1u;
+  }
+
+  self.instance_count = survivors;
+  self.base_instance  = base;
+
+  uint slot = (command_id < push.opaque_len)
+    ? atomicAdd(counter_opaque, 1u)
+    : push.opaque_len + atomicAdd(counter_alpha, 1u);
+  commands_dst[slot] = self;
+}

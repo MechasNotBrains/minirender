@@ -33,8 +33,8 @@
             .lazy = true,
         },
         .cvulkan = .{
-            .url = "git+https://codeberg.org/heysokam/cvulkan.ffi#a491ec4d18698cb38b6d1b90444b045461c5cec9",
-            .hash = "cvulkan-0.0.0-ldns-4qrGwBidBXwRmFrXRTIrv_78J7kEdT4beHbna9K",
+            .url = "git+https://codeberg.org/heysokam/cvulkan.ffi#3480c62a9874c36a817492da5a0d132c2647e7c4",
+            .hash = "cvulkan-0.0.0-ldns-86kIQDy-vLqgZt0Okp2NSLJost6v4pfZDhWHaPu",
             .lazy = true,
         },
     },

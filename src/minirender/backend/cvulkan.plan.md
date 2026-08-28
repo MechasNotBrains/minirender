@@ -54,9 +54,8 @@ order, by any invocation, and can be written by a compute pass before the draw r
   buffer. `Store.Command` is already field for field that struct.
 - **Draw count.** `vkCmdDrawIndexedIndirectCount` reads the number of commands from a buffer as
   well, so a compute pass culls and writes how many survived. This is the step that makes the
-  renderer GPU-driven instead of GPU-fed: the CPU stops knowing how many draws happen.
-- **Materials.** Descriptor indexing addresses a texture array by an index carried in the
-  instance, rather than rebinding descriptors between draws.
+  renderer GPU-driven instead of GPU-fed: the CPU stops knowing how many draws happen. Done, in
+  `cvulkan/cull.zig`.
 
 ### What cvulkan already provides
 
@@ -78,14 +77,6 @@ already checked by `cvk_device_features_supported` and combined by `cvk_device_f
 `count`/`element`, so storage buffers and descriptor arrays need nothing added.
 `cvk_pipeline_compute_create` exists, and `mech/cvulkan/compute.c` already dispatches through
 barriers, so the culling pass has its foundation.
-
-### What is actually missing
-
-Only the command wrappers. Names still to be decided:
-
-- one over `vkCmdDrawIndexedIndirect`
-- one over `vkCmdDrawIndexedIndirectCount`
-
 
 ## Done
 
@@ -126,30 +117,77 @@ Not missing:
 
 ## Backend work
 
-- [ ] **Bootstrap.** Instance, validation, physical/logical device, queue, swapchain, image views.
+- [x] **Bootstrap.** Instance, validation, physical/logical device, queue, swapchain, image views.
       Surface comes from `mglfw.vk.surface`; `msys` already defaults to `.api = .vk`.
-- [ ] **Shaders.** `cvk_shader_create` takes SPIR-V only. Port both GLSL pairs from
+- [x] **Shaders.** `cvk_shader_create` takes SPIR-V only. Port both GLSL pairs from
       `backend/opengl/shaders.zig` and compile them the way `mech/cvulkan/shaders/` already does.
-  - [ ] `uViewProjection` becomes a push constant
-  - [ ] `uAtlas` becomes a combined image sampler descriptor
-  - [ ] `uTextured` becomes a push constant or a specialization constant
-- [ ] **Instance data.** OpenGL uses a second vertex binding at divisor 1. cvulkan's example reads a
-      storage buffer by `gl_InstanceIndex` instead, which is what the existing helpers demonstrate.
-      Pick one before writing the vertex input state.
-- [ ] **Frames in flight.** Instance buffer, command buffer, fence and semaphore per frame.
+  - [x] each pair belongs to the element that draws with it: `geometry.Shader` and `lines.Shader`.
+        There is no `shader.zig`
+  - [x] `uViewProjection` becomes a push constant
+  - [x] `uAtlas` is a combined image sampler at set 0 binding 1, bound every frame from
+        `cvulkan/atlas.zig`. The push constant range covers vertex and fragment now that the
+        fragment stage reads `textured`
+  - [x] `uTextured` becomes a push constant, read by `geometry.frag` exactly as the OpenGL pair does
+- [x] **Instance data.** Storage buffer read by `gl_InstanceIndex`, bound at set 0 binding 0
+- [x] **GPU-driven draw count.** `cvulkan/cull.zig` runs `shaders/cull.comp` before the rendering
+      pass, one invocation per command. Each tests its instances against the six frustum planes,
+      compacts the survivors into its own instance buffer through `atomicAdd`, rewrites
+      `instance_count` and `base_instance`, and claims an output command slot from the opaque or
+      the alpha counter. `vkCmdDrawIndexedIndirectCount` then reads both the commands and how many
+      there are from those buffers. The CPU passes a maximum, never a count.
+  - [x] `Shape` measures its own box at `shape_add`; `store.build` carries it into every instance,
+        so the cull test needs no second per-shape buffer and no `gl_DrawID`
+- [x] **Frames in flight.** Instance buffer, command buffer, fence and semaphore per frame.
       `update_instance` writes into the mapped buffer of the frame being recorded.
-- [ ] **Geometry buffers.** Vertex and index buffers grown the way `ensure_buffer` does in OpenGL.
-- [ ] **Two pipelines for the alpha pass**, or `VK_DYNAMIC_STATE_DEPTH_WRITE_ENABLE`.
-      OpenGL draws the opaque commands, turns depth writes off, then draws the rest.
-- [ ] **Line pipeline.** Second pipeline at line-list topology over its own vertex buffer.
+  - [x] command buffer, fence and semaphore per frame, plus a descriptor set per frame
+  - [x] the instance buffer is one per frame, and a `buffer.Host`: a host visible storage buffer
+        that stays mapped, so the cull pass reads it with no staging copy and no queue wait
+  - [x] `update_instance` keeps the slot `store.instance_update` hands back and appends one
+        `Geometry.Patch`. Each frame applies the patches added since its own turn, straight into
+        its mapped buffer. The list clears once every frame has caught up
+  - [x] the indirect buffer is one per frame, written on the same turn as its instance buffer
+- [x] **Geometry buffers.** Vertex and index buffers grown by recreating them in `Buffer.upload`
+- [x] **Two pipelines for the alpha pass.** `graphics_opaque` writes depth, `graphics_alpha` does not.
+      `draw` issues one indirect call per range, offset by `opaque_len` commands into the same buffer
+- [x] **Line pipeline.** `lines.zig` owns its shader, its line-list pipeline and its vertex buffer.
+      `viewProjection` and `color` travel together in one push constant range covering both stages.
+  - [x] parity with the OpenGL backend: depth test off, `lineWidth` 2.0 through `wideLines`
 - [ ] **Resize.** `cvk_device_swapchain_recreate`, plus the depth image alongside it.
+      Blocked upstream: cvulkan marks that function `FIX: Does not work as expected. Currently gives
+      validation errors on unreachable semaphore.` The callback tracks window size and camera aspect,
+      but the swapchain keeps its original extent until that is fixed in cvulkan.
+
+
+## Blocked on minirender.zig
+
+- [x] `minirender.Atlas` was `atlas.zig`, which imports `mgl`. It now resolves to
+      `backend/cvulkan/atlas.zig` through `core.zig`, so the Vulkan root exports a Vulkan atlas
+- [x] `minirender.ui` / `Ui` resolve to `backend/cvulkan/ui.zig` through `core.zig`. `mui` is a
+      dependency of the Vulkan build now, and `ui.zig` (the OpenGL union) is left to `core.gl.zig`
+
+### Toward mui
+
+`backend/cvulkan/ui.zig` is laid out the way `mui/src/mui/backend/mgpu` already is, so it lifts
+into mui as a second backend beside `mgpu` with the minirender types swapped out:
+
+| here                        | mui                              |
+|:----------------------------|:---------------------------------|
+| `Instance` + `Instance.upload` | `backend/mgpu/instance.zm`    |
+| `Shader` + `vertex`/`fragment` | `backend/mgpu/shader.zm`      |
+| `Screen` push constant       | `backend/mgpu/core.zm` `Screen`  |
+| `Type`, `create`/`destroy`   | `backend/mgpu/core.zm` `Type`    |
+| `sync` / `draw`              | `backend/mgpu.zm` `update` / `pass_draw` |
+
+- [ ] the port of minirender's UI onto mui is still unfinished upstream: `mui`'s own shape has
+      `uv` and `offset`, but `backend/mgpu` ignores both. The shaders here carry them, as the
+      OpenGL pair in `backend/opengl/shaders.zig` does
 
 
 ## Blocked on core.zig
 
-- [ ] `create` hardcodes `.api = .gl` and calls `mgl.v4.load`. Needs to branch on the backend asked for.
-- [ ] `cb.resize` calls `mgl.v4.viewport.set`. Vulkan sets the viewport per command buffer and
-      recreates the swapchain instead.
+- [x] `create` asks for `.api = .vk`, with no `mgl.v4.load` and no `@panic` arms left
+- [x] `cb.resize` no longer calls `mgl.v4.viewport.set`. The viewport is set per command buffer,
+      inside `pass_draw`
 
 
 ## Order
@@ -162,6 +200,9 @@ Not missing:
 
 ## Notes
 
-Two cvulkan defaults already match what the OpenGL backend does, so neither needs an argument:
-`colorBlend_attachment_defaults` is `SRC_ALPHA`/`ONE_MINUS_SRC_ALPHA` with blending enabled, and
-`depthStencil_defaults` is test on, write on, `COMPARE_OP_LESS`.
+`colorBlend_attachment_defaults` is `SRC_ALPHA`/`ONE_MINUS_SRC_ALPHA` with blending enabled, which
+matches what the OpenGL backend does, so it needs no argument.
+
+`depthStencil_defaults` is test on, write on, `COMPARE_OP_GREATER`: reversed depth. It pairs with
+`mmath.Mat4.perspective`, which is reverse-Z (near maps to 1, far to 0), so the depth attachment
+clears to `0.0`, not `1.0`.

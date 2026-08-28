@@ -105,12 +105,15 @@ pub const Type = struct {
     try S.vertices.add_many(verts);
     try S.indices.add_many(inds);
 
+    const box = minirender.Shape.bounds(verts);
     const result = try S.shapes.add(.{
       .base_vertex  = base_vertex,
       .first_index  = first_index,
       .index_count  = @intCast(inds.len),
       .vertex_count = @intCast(verts.len),
       .alpha        = alpha,
+      .center       = box.center,
+      .extent       = box.extent,
     });
 
     S.geometry_dirty = true;
@@ -194,6 +197,14 @@ pub const Type = struct {
       S.instances_dirty = true;
       return null;
     };
+  }
+
+
+  //__________________
+  pub fn instance_bounds (S :*Type, id :minirender.Instance.Id) minirender.Shape.Bounds {
+    const inst = S.instances.get(id) orelse return .{};
+    const shape_data = S.shapes.get(inst.shape) orelse return .{};
+    return .{ .center = shape_data.center, .extent = shape_data.extent };
   }
 
 
@@ -288,12 +299,14 @@ pub const Type = struct {
     @memcpy(write_heads[0..max_shape_slots], shape_to_offset[0..max_shape_slots]);
 
     for (S.instances.mitems()) |*inst| {
-      if (S.shapes.get(inst.shape) == null) continue;
+      const shape_data = S.shapes.get(inst.shape) orelse continue;
       const slot = inst.shape.id;
       const gpu_index = write_heads[slot];
       gpu_data[gpu_index] = .{
-        .world = minirender.mat4_to_f32(&inst.world),
-        .color = minirender.vec4_to_f32(&inst.color),
+        .world  = minirender.mat4_to_f32(&inst.world),
+        .color  = minirender.vec4_to_f32(&inst.color),
+        .center = .{ shape_data.center[0], shape_data.center[1], shape_data.center[2], 1 },
+        .extent = .{ shape_data.extent[0], shape_data.extent[1], shape_data.extent[2], 0 },
       };
       inst.gpu_offset = gpu_index;
       write_heads[slot] += 1;

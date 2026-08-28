@@ -24,9 +24,12 @@ pub const Instance   = minirender.geometry.Instance;
 pub const store      = @import("./minirender/store.zig");
 pub const Store      = minirender.store.Store;
 pub const Command    = minirender.store.Command;
-pub const Atlas      = @import("./minirender/atlas.zig");
+pub const atlas      = @import("./minirender/core.zig").atlas;
+pub const Atlas      = @import("./minirender/core.zig").Atlas;
+pub const cull       = @import("./minirender/core.zig").cull;
 // UI
-pub const ui         = @import("./minirender/ui.zig");
-pub const Ui         = minirender.ui.Type;
+pub const ui         = @import("./minirender/core.zig").ui;
+pub const Ui         = @import("./minirender/core.zig").Ui;
+pub const font5x7    = @import("./minirender/ui/font5x7.zig");
 // Renderer
 pub const Render     = @import("./minirender/core.zig").Render;

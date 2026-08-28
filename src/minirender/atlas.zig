@@ -81,6 +81,6 @@ pub fn cell_offset (A :*const Atlas, handle :Handle) [2]f32 {
   };
 }
 
-pub fn bind (A :*const Atlas, unit :u32) void {
-  A.texture.bind(unit);
+pub fn enable (A :*const Atlas, unit :u32) void {
+  A.texture.enable(unit);
 }

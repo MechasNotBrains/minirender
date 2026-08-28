@@ -776,3 +776,17 @@ pub fn lookup(character :u8) Glyph {
   if (character < 0x20 or character > 0x7E) return glyphs[0];
   return glyphs[character - 0x20];
 }
+
+
+//_______________________________________
+// @section Atlas Regions
+//_____________________________
+pub const W = 5;
+pub const H = 7;
+pub var regions :[glyphs.len][4]f32 = @splat(.{ 0, 0, 0, 0 });
+pub var uploaded :bool = false;
+//__________________
+pub fn region(character :u8) [4]f32 {
+  if (character < 0x20 or character > 0x7E) return regions[0];
+  return regions[character - 0x20];
+}

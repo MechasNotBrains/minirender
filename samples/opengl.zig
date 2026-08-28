@@ -12,7 +12,7 @@ const vec3       = minirender.vec3;
 // @section Entry Point
 //____________________________
 pub fn main (P :std.process.Init) !void {
-  var R = try minirender.Render.create(P.arena.allocator(), .{
+  var R = try minirender.Render.create(P.io, P.arena.allocator(), .{
     .title = "minirender.gl | Sample Cube",
     .mouse = .disabled,
   });

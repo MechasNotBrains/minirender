@@ -290,22 +290,13 @@ fn draw_label (
   ) void {
   var cursor_x = start_x;
   for (text) |character| {
-    const glyph = font5x7.lookup(character);
-    for (0..7) |glyph_row| {
-      for (0..5) |column| {
-        if (!glyph.pixel(column, glyph_row)) continue;
-        scene.add(.{
-          .transform = .create(
-            cursor_x + @as(f32, @floatFromInt(column)) * dot_width,
-            start_y + @as(f32, @floatFromInt(glyph_row)) * dot_height,
-            dot_width,
-            dot_height,
-          ),
-          .color = color,
-          .kind  = .square,
-        }) catch return;
-      }
-    }
+    const region = font5x7.region(character);
+    if (region[2] > 0.0) scene.add(.{
+      .transform = .create(cursor_x, start_y, dot_width * font5x7.W, dot_height * font5x7.H),
+      .uv        = .create(region[0], region[1], region[2], region[3]),
+      .color     = color,
+      .kind      = .square,
+    }) catch return;
     cursor_x += char_advance;
   }
 }
