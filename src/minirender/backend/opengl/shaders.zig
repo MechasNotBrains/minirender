@@ -133,16 +133,17 @@ pub const ui_frag_src: [:0]const u8 =
   \\  return sdf_circle(pixel, min(size.x, size.y) * 0.5) - offset;
   \\}
   \\void main(){
+  \\  if (vAtlasRegion.z > 0.0) {
+  \\    vec2 atlas_uv = vUV * vAtlasRegion.zw + vAtlasRegion.xy;
+  \\    vec4 texel    = texture(uAtlas, atlas_uv);
+  \\    FragColor     = vec4(vColor.rgb * texel.rgb, vColor.a * texel.a);
+  \\    return;
+  \\  }
   \\  vec2  centered = vUV - 0.5;
   \\  vec2  pixel    = centered * vSize;
   \\  float dist     = sdf_shape(vShape, pixel, vSize, vOffset);
   \\  float edge     = fwidth(dist);
   \\  float alpha    = 1.0 - smoothstep(-edge, edge, dist);
-  \\  vec4  base     = vColor;
-  \\  if (vAtlasRegion.z > 0.0) {
-  \\    vec2 atlas_uv = vUV * vAtlasRegion.zw + vAtlasRegion.xy;
-  \\    base.rgb *= texture(uAtlas, atlas_uv).rgb;
-  \\  }
-  \\  FragColor = vec4(base.rgb, base.a * alpha);
+  \\  FragColor = vec4(vColor.rgb, vColor.a * alpha);
   \\}
 ;

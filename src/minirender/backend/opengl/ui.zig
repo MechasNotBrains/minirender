@@ -120,10 +120,10 @@ pub const Render = struct {
     R.instance_count = shapes.len;
 
     R.program.enable();
-    R.vao.bind();
+    R.vao.enable();
     R.screen_size_location.set([2]f32{ screen_width, screen_height });
     R.atlas_location.set(@as(i32, 0));
-    R.instance_ssbo.bind_base(0);
+    R.instance_ssbo.enable_base(0);
 
     gl.state.disable(.depth_test);
     gl.state.enable(.blend);
@@ -132,7 +132,7 @@ pub const Render = struct {
     gl.draw.elements_instanced(.triangles, 6, .unsigned_int, R.instance_count);
 
     gl.state.enable(.depth_test);
-    R.vao.unbind();
+    R.vao.disable();
     R.program.disable();
   }
 };

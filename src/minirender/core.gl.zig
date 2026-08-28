@@ -69,7 +69,6 @@ pub const Type = struct {
   pub fn destroy (R :*const @This()) void {
     var mutable :*@This()= @constCast(R); _=&mutable;
     mutable.backend.destroy();
-    mutable.input.destroy();
     mutable.system.term();
   }
   //__________________
@@ -77,41 +76,31 @@ pub const Type = struct {
     title     :mstd.zstring                    = "minirender",
     debug     :bool                            = false,
     mouse     :msys.Options.Input.Mouse.Mode   = .normal,
-    resize    :msys.glfw.Fn.Resize             = null,
     resizable :bool                            = true,
     userdata  :?*anyopaque                     = null,
   };
   //__________________
   pub fn create (
+      io  : std.Io,
       A   : std.mem.Allocator,
       arg : @This().create_args,
     ) !@This() {
     var result :@This()= undefined;
-    result.input  = minp.Manager.create(A, .{});
-    result.system = try msys.init(A, .{
+    result.input  = .empty;
+    result.system = try msys.init(io, A, .{
       .api             = .gl,
       .window          = .{
         .title         = arg.title,
         .resizable     = arg.resizable,
-        .cb            = .{ .resize = arg.resize orelse &cb_resize },
       },
       .gl              = .{ .version = .{ .M = 4, .m = 6 } },
-      .input           = .{
-        .mouse         = .{ .mode = arg.mouse },
-        .cb            = .{
-          .key         = result.input.key.cb,
-          .mouseBtn    = result.input.mouse.cb.btn,
-          .mousePos    = result.input.mouse.cb.pos,
-          .mouseScroll = result.input.mouse.cb.scroll,
-          .char        = result.input.text.cb,
-        }, //:: result.system.input.cb
-      }, //:: result.system.input
+      .input           = .{ .mouse = .{ .mode = arg.mouse } },
     }); //:: result.system
     try gl.load(msys.gl.getProc);
     result.camera   = mcam.Camera{};
     result.userdata = arg.userdata;
     result.backend  = try .create(A, .{ .debug= arg.debug });
-    if (arg.userdata) |ud| msys.glfw.user.pointer.set(result.system.window.ct, ud);
+    result.system.window.user = arg.userdata;
     return result;
   }
 
@@ -119,15 +108,22 @@ pub const Type = struct {
   // @section Process
   //____________________________
   pub fn close   (R :*const @This()) bool { return R.system.close(); }
-  pub fn present (R :*const @This()) void { R.system.present(); }
+  pub fn present (R :*@This()) void { R.system.present(); }
   pub fn update  (R :*@This()      ) void {
     if (R.userdata == null) {
       R.userdata = @ptrCast(R);
-      msys.glfw.user.pointer.set(R.system.window.ct, R.userdata);
+      R.system.window.user = R.userdata;
     }
-    R.system.update();
+    var events = R.system.events();
+    while (events.next()) |ev| {
+      R.input.event(ev);
+      switch (ev) {
+        .resize => |size| minirender.backend.opengl.resize(R, size.w, size.h),
+        else    => {},
+      }
+    }
     R.camera.update(&R.camera, &R.input);
-    R.input.mouse.change_reset();
+    R.input.mouse.change = .create(0,0,0,0);
     if (R.close_on_escape and R.input.key.active(.escape)) R.system.set_close(true);
   }
 
@@ -193,8 +189,8 @@ pub const Type = struct {
     ) void { R.backend.update_instance(id, world, C); }
 
   //______________________________________
-  // @section Callbacks
+  // @section Events
   //____________________________
-  pub const cb_resize = minirender.backend.opengl.resize;
+  pub const resize = minirender.backend.opengl.resize;
 };
 

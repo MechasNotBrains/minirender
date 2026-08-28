@@ -193,7 +193,7 @@ pub const Type = struct {
     }
 
     R.program.enable();
-    R.vao.bind();
+    R.vao.enable();
 
     const view       = camera.view();
     const projection = minirender.Mat4.perspective_Dno(camera.fov, camera.aspect, camera.near, camera.far);
@@ -211,7 +211,7 @@ pub const Type = struct {
     gl.state.polygon_offset.set(1.0, 1.0);
 
     if (R.live_command_count > 0) {
-      R.indirect_buffer.bind();
+      R.indirect_buffer.enable();
       if (R.opaque_command_count > 0) {
         gl.draw.multi_elements_indirect(.triangles, .unsigned_int, R.opaque_command_count, 0, 0);
       }
@@ -226,19 +226,19 @@ pub const Type = struct {
 
     gl.state.disable(.polygon_offset_fill);
 
-    R.vao.unbind();
+    R.vao.disable();
     R.program.disable();
 
     if (R.line_vertex_count > 0) {
       R.line_program.enable();
-      R.line_vao.bind();
+      R.line_vao.enable();
       R.line_vp_location.set(view_projection_floats);
       R.line_color_location.set(R.line_color);
       gl.state.line_width.set(2.0);
       gl.state.disable(.depth_test);
       gl.draw.arrays(.lines, 0, @intCast(R.line_vertex_count));
       gl.state.enable(.depth_test);
-      R.line_vao.unbind();
+      R.line_vao.disable();
       R.line_program.disable();
     }
   }
@@ -299,14 +299,11 @@ pub const Type = struct {
 
 
 //______________________________________
-// @section Callbacks
+// @section Events
 //____________________________
-pub fn resize (window :?*msys.glfw.Window, width :c_int, height :c_int) callconv(.c) void {
-  gl.viewport.set(0, 0, width, height);
-  if (width <= 0 or height <= 0) return;
-  const renderer :*minirender.Render = @ptrCast(@alignCast(msys.glfw.user.pointer.get(window) orelse return));
-  renderer.system.window.W = @intCast(width);
-  renderer.system.window.H = @intCast(height);
-  renderer.camera.aspect = @as(f32, @floatFromInt(width)) / @as(f32, @floatFromInt(height));
+pub fn resize (R :*minirender.Render, width :u32, height :u32) void {
+  gl.viewport.set(0, 0, @intCast(width), @intCast(height));
+  if (width == 0 or height == 0) return;
+  R.camera.aspect = @as(f32, @floatFromInt(width)) / @as(f32, @floatFromInt(height));
 }
 
