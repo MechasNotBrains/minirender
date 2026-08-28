@@ -64,6 +64,7 @@ pub const Type = struct {
     debug     :bool                            = false,
     mouse     :msys.Options.Input.Mouse.Mode   = .normal,
     resizable :bool                            = true,
+    vsync     :bool                            = true,
     userdata  :?*anyopaque                     = null,
   };
   //__________________
@@ -84,7 +85,7 @@ pub const Type = struct {
     }); //:: result.system
     result.camera   = mcam.Camera{};
     result.userdata = arg.userdata;
-    result.backend  = try .create(A, .{ .system= &result.system, .atlas= arg.atlas, .debug= arg.debug });
+    result.backend  = try .create(A, .{ .system= &result.system, .atlas= arg.atlas, .debug= arg.debug, .vsync= arg.vsync });
     result.system.window.user = arg.userdata;
     return result;
   }
@@ -156,7 +157,7 @@ pub const Type = struct {
       S     : Shape.Id,
       world : minirender.Mat4,
       color : minirender.Color,
-    ) void { R.store().instance_reassign(id, S, world, color); }
+    ) void { R.backend.reassign_instance(id, S, world, color); }
   //__________________
   pub fn set_selection_lines (
       R         : *@This(),

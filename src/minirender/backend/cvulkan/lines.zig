@@ -7,13 +7,16 @@ const This = @This();
 // @deps std
 const std = @import("std");
 // @deps minirender
-const cvk = @import("cvulkan");
+const cvk  = @import("cvulkan");
+const mstd = @import("mstd");
 const minirender = struct {
   const Gpu    = @import("./gpu.zig").Gpu;
   const Sync   = @import("./sync.zig").Sync;
   const Buffer = @import("./buffer.zig").Buffer;
+  const Host   = @import("./buffer.zig").Host;
   const Target = @import("./target.zig").Target;
 };
+const frames_Len = @import("./sync.zig").frames_Len;
 
 
 //_______________________________________
@@ -106,7 +109,9 @@ pub const Type = struct {
   shader        :This.Shader = .{},
   graphics      :cvk.pipeline.Graphics = .{},
   stages        :[2]cvk.pipeline.ShaderStage = std.mem.zeroes([2]cvk.pipeline.ShaderStage),
-  vertex_buffer :minirender.Buffer = .{ .usage = .initOne(.vertex_buffer) },
+  vertex_buffer :[This.frames_Len]minirender.Host = @splat(.{ .usage = .initOne(.vertex_buffer) }),
+  vertex_fresh  :[This.frames_Len]bool = @splat(false),
+  vertex_data   :mstd.seq([3]f32) = undefined,
   vertex_len    :u32 = 0,
   color         :[4]f32 = .{ 1, 1, 1, 1 },
 
@@ -124,14 +129,15 @@ pub const Type = struct {
 //_____________________________
 pub fn destroy (L :*const Type, gpu :*minirender.Gpu) void {
   var mutable :*Type= @constCast(L); _= &mutable;
-  mutable.vertex_buffer.destroy(gpu);
+  for (&mutable.vertex_buffer) |*buffer| buffer.destroy(gpu);
+  mutable.vertex_data.destroy();
   mutable.graphics.destroy(&gpu.device.logical, &gpu.instance);
   mutable.shader.destroy(gpu);
   mutable.vertex_len = 0;
 }
 //__________________
-pub fn create (gpu :*minirender.Gpu, trg :*const minirender.Target) Type {
-  var result :Type= .{ .shader = .create(gpu) };
+pub fn create (gpu :*minirender.Gpu, trg :*const minirender.Target, A :std.mem.Allocator) Type {
+  var result :Type= .{ .shader = .create(gpu), .vertex_data = .create_empty(A) };
   result.stages[0] = result.shader.vert.stage;
   result.stages[1] = result.shader.frag.stage;
 
@@ -188,7 +194,7 @@ pub fn create (gpu :*minirender.Gpu, trg :*const minirender.Target) Type {
 //_______________________________________
 // @section Process
 //_____________________________
-pub fn clear (L :*Type) void { L.vertex_len = 0; }
+pub fn clear (L :*Type) void { L.vertex_len = 0; L.vertex_data.clear(); L.vertex_fresh = @splat(false); }
 //__________________
 pub fn set (
     L         : *Type,
@@ -197,10 +203,14 @@ pub fn set (
     positions : []const [3]f32,
     C         : [4]f32,
   ) void {
+  _ = gpu;
+  _ = S;
   L.color      = C;
   L.vertex_len = @intCast(positions.len);
+  L.vertex_fresh = @splat(false);
+  L.vertex_data.clear();
   if (positions.len == 0) return;
-  L.vertex_buffer.upload(gpu, S, std.mem.sliceAsBytes(positions));
+  L.vertex_data.add_many(positions) catch { L.vertex_len = 0; return; };
 }
 //__________________
 pub fn draw (
@@ -211,6 +221,13 @@ pub fn draw (
   ) void {
   if (L.vertex_len == 0) return;
   const frameID = S.frameID;
+  var mutable :*Type= @constCast(L); _= &mutable;
+  if (!mutable.vertex_fresh[frameID]) {
+    const bytes = std.mem.sliceAsBytes(mutable.vertex_data.data());
+    mutable.vertex_buffer[frameID].fit(gpu, bytes.len);
+    mutable.vertex_buffer[frameID].write(0, bytes);
+    mutable.vertex_fresh[frameID] = true;
+  }
   const push :This.Push= .{ .viewProjection = viewProjection, .color = L.color };
   S.buffer[frameID].graphics_bind(&L.graphics);
   S.buffer[frameID].constants_push(.{
@@ -228,7 +245,7 @@ pub fn draw (
     .offset = .{ .x = 0, .y = 0 },
     .extent = gpu.device.swapchain.cfg.imageExtent,
   });
-  S.buffer[frameID].buffer_vertex_bind(&L.vertex_buffer.vram.data);
+  S.buffer[frameID].buffer_vertex_bind(&L.vertex_buffer[frameID].data);
   S.buffer[frameID].draw(.{
     .elements_len = L.vertex_len,
     .instance_len = 1,

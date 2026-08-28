@@ -36,7 +36,10 @@ pub const Type = struct {
   pub fn create (
       system : *msys.System,
       A      : std.mem.Allocator,
+      vsync  : bool,
+      debug  : bool,
     ) !@This() {
+    const validation_disabled :cvk.Validation.Options= .{};
     cvk.sanityCheck();
     const application = cvk.application.defaults();
 
@@ -50,8 +53,9 @@ pub const Type = struct {
     result.instance = .create(.{
       .application  = &application,
       .extensions   = instance_extensions,
+      .validation   = if (debug) null else &validation_disabled,
     });
-    result.device = try .create(system, &result.instance);
+    result.device = try .create(system, &result.instance, vsync);
     return result;
   }
 

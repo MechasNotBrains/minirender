@@ -15,6 +15,7 @@ const minirender = struct {
   const sync   = @import("./sync.zig");
   const Buffer = @import("./buffer.zig").Buffer;
   const Host   = @import("./buffer.zig").buffer.Host;
+  const Local  = @import("./buffer.zig").buffer.Local;
   const Store  = @import("../../store.zig").Store;
   const Vertex = @import("../../geometry.zig").Vertex;
   const Command = @import("../../store.zig").Command;
@@ -103,7 +104,8 @@ pub const Type = struct {
   shader          :This.Shader = .{},
   vertex_buffer   :minirender.Buffer = .{ .usage = .initOne(.vertex_buffer) },
   index_buffer    :minirender.Buffer = .{ .usage = .initOne(.index_buffer) },
-  instance_buffer :[sync.frames_Len]minirender.Host = @splat(.{ .usage = .initOne(.storage_buffer) }),
+  instance_buffer :[sync.frames_Len]minirender.Host = @splat(.{ .usage = .initOne(.transfer_src) }),
+  instance_local  :[sync.frames_Len]minirender.Local = @splat(.{ .usage = .initOne(.storage_buffer) }),
   instance_dirty  :[sync.frames_Len]bool = @splat(false),
   patches         :mstd.seq(This.Patch),
   patched         :[sync.frames_Len]usize = @splat(0),
@@ -126,6 +128,7 @@ pub const Type = struct {
     mutable.vertex_buffer.destroy(gpu);
     mutable.index_buffer.destroy(gpu);
     for (&mutable.instance_buffer) |*B| B.destroy(gpu);
+    for (&mutable.instance_local) |*B| B.destroy(gpu);
     for (&mutable.indirect_buffer) |*B| B.destroy(gpu);
     mutable.patches.destroy();
     mutable.patched        = @splat(0);
@@ -152,8 +155,8 @@ pub const Type = struct {
       }
       const verts = store.vertices.data();
       const inds  = store.indices.data();
-      if (verts.len != 0) G.vertex_buffer.upload(gpu, S, std.mem.sliceAsBytes(verts));
-      if (inds.len  != 0) G.index_buffer.upload(gpu, S, std.mem.sliceAsBytes(inds));
+      if (verts.len != 0) G.vertex_buffer.upload_record(gpu, S, std.mem.sliceAsBytes(verts));
+      if (inds.len  != 0) G.index_buffer.upload_record(gpu, S, std.mem.sliceAsBytes(inds));
       store.geometry_dirty  = false;
       store.instances_dirty = true;
     }
@@ -165,17 +168,34 @@ pub const Type = struct {
       G.patched = @splat(0);
     }
 
-    if (!G.instance_dirty[S.frameID]) return G.patch(S);
+    if (!G.instance_dirty[S.frameID]) {
+      G.patch(S);
+      G.instance_sync(gpu, S);
+      return;
+    }
     G.instance_dirty[S.frameID] = false;
     const draws = store.build() orelse { G.indirect_len = 0; return; };
     defer draws.destroy();
     G.instance_buffer[S.frameID].fit(gpu, std.mem.sliceAsBytes(draws.instances).len);
     G.instance_buffer[S.frameID].write(0, std.mem.sliceAsBytes(draws.instances));
-    G.indirect_buffer[S.frameID].upload(gpu, S, std.mem.sliceAsBytes(draws.commands));
+    G.indirect_buffer[S.frameID].upload_record(gpu, S, std.mem.sliceAsBytes(draws.commands));
     G.indirect_len   = @intCast(draws.commands.len);
     G.opaque_len     = draws.opaque_count;
     G.instance_len   = @intCast(draws.instances.len);
     G.patched[S.frameID] = G.patches.len();
+    G.instance_sync(gpu, S);
+  }
+  //__________________
+  pub fn instance_sync (G :*@This(), gpu :*minirender.Gpu, S :*const minirender.Sync) void {
+    if (G.instance_len == 0) return;
+    G.instance_local[S.frameID].fit(gpu, G.instance_buffer[S.frameID].size);
+    S.buffer[S.frameID].buffer_copy(&G.instance_buffer[S.frameID].data, &G.instance_local[S.frameID].data);
+    S.buffer[S.frameID].buffer_sync(&G.instance_local[S.frameID].data, .{
+      .access_src = .initOne(.transfer_write),
+      .access_trg = .initOne(.shader_read),
+      .stage_src  = .initOne(.transfer),
+      .stage_trg  = .initOne(.compute_shader),
+    });
   }
   //__________________
   pub fn patch_add (G :*@This(), slot :u32, data :minirender.GpuInstanceData) void {

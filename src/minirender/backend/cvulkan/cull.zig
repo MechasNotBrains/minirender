@@ -14,6 +14,7 @@ const minirender = struct {
   const sync    = @import("./sync.zig");
   const Buffer  = @import("./buffer.zig").Buffer;
   const Host    = @import("./buffer.zig").buffer.Host;
+  const Local   = @import("./buffer.zig").buffer.Local;
   const Command = @import("../../store.zig").Command;
   const GpuInstanceData = @import("../../geometry.zig").GpuInstanceData;
 };
@@ -294,7 +295,7 @@ pub fn record (
     C             : *const Type,
     gpu           : *minirender.Gpu,
     S             : *const minirender.Sync,
-    instances_src : *const minirender.Host,
+    instances_src : *const minirender.Local,
     commands_src  : *const minirender.Buffer,
     push          : *const This.Push,
   ) void {
@@ -334,7 +335,7 @@ pub fn record (
     .pipeline_layout = &C.compute.layout,
     .bindpoint       = .compute,
   });
-  S.buffer[frameID].compute_dispatch((push.commands_len + This.group_size - 1) / This.group_size, 1, 1);
+  S.buffer[frameID].compute_dispatch(push.commands_len, 1, 1);
 
   S.buffer[frameID].buffer_sync(&C.commands[frameID].vram.data, .{
     .access_src = .initOne(.shader_write),

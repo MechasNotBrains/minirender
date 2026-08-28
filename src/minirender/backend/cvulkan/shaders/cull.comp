@@ -60,30 +60,45 @@ bool visible (Instance self) {
   return true;
 }
 
+shared uint survivors_len;
+shared uint survivors_base;
+shared uint survivors_head;
+
 void main () {
-  uint command_id = gl_GlobalInvocationID.x;
+  uint command_id = gl_WorkGroupID.x;
   if (command_id >= push.commands_len) return;
 
   Command self  = commands_src[command_id];
   uint    first = self.base_instance;
-  uint    last  = first + self.instance_count;
+  uint    count = self.instance_count;
+  uint    local = gl_LocalInvocationID.x;
+  uint    step  = gl_WorkGroupSize.x;
 
-  uint survivors = 0u;
-  for (uint id = first; id < last; ++id) {
-    if (visible(instances_src[id])) survivors += 1u;
+  if (local == 0u) survivors_len = 0u;
+  barrier();
+
+  for (uint id = local; id < count; id += step) {
+    if (visible(instances_src[first + id])) atomicAdd(survivors_len, 1u);
   }
-  if (survivors == 0u) return;
+  barrier();
 
-  uint base = atomicAdd(counter_instance, survivors);
-  uint head = base;
-  for (uint id = first; id < last; ++id) {
-    if (!visible(instances_src[id])) continue;
-    instances_dst[head] = instances_src[id];
-    head += 1u;
+  if (survivors_len == 0u) return;
+
+  if (local == 0u) {
+    survivors_base = atomicAdd(counter_instance, survivors_len);
+    survivors_head = survivors_base;
   }
+  barrier();
 
-  self.instance_count = survivors;
-  self.base_instance  = base;
+  for (uint id = local; id < count; id += step) {
+    if (!visible(instances_src[first + id])) continue;
+    instances_dst[atomicAdd(survivors_head, 1u)] = instances_src[first + id];
+  }
+  barrier();
+
+  if (local != 0u) return;
+  self.instance_count = survivors_len;
+  self.base_instance  = survivors_base;
 
   uint slot = (command_id < push.opaque_len)
     ? atomicAdd(counter_opaque, 1u)

@@ -58,7 +58,9 @@ pub const Type = struct {
   pub fn create (
       system   : *msys.System,
       instance : *cvk.Instance,
+      vsync    : bool,
     ) !@This() {
+    const mode_immediate :cvk.vk.PresentMode= .immediate;
     var result :@This()= undefined;
     const features :cvk.device.features.Required= .{ .user = device.features_gpuDriven() };
     result.surface    = try .create(system, instance);
@@ -87,6 +89,7 @@ pub const Type = struct {
       .surface         = result.surface.ct,
       .size            = .{ .width = system.window.W, .height = system.window.H },
       .allocator       = &instance.allocator,
+      .mode            = if (vsync) null else &mode_immediate,
     });
     return result;
   }

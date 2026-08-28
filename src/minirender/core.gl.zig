@@ -169,7 +169,7 @@ pub const Type = struct {
       S     : Shape.Id,
       world : minirender.Mat4,
       C     : minirender.Color,
-    ) void { R.store().instance_reassign(id, S, world, C); }
+    ) void { _ = R.store().instance_reassign(id, S, world, C); }
   //__________________
   pub fn set_selection_lines (
       R         : *@This(),

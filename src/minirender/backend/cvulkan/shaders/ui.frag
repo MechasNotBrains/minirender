@@ -30,11 +30,16 @@ float sdf_shape (uint shape, vec2 pixel, vec2 size, float offset) {
   return sdf_circle(pixel, min(size.x, size.y) * 0.5) - offset;
 }
 
+vec3 srgb_to_linear (vec3 value) {
+  return mix(value / 12.92, pow((value + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), value));
+}
+
 void main () {
+  vec3 base_color = srgb_to_linear(vColor.rgb);
   if (vAtlasRegion.z > 0.0) {
     vec2 atlas_uv = vUV * vAtlasRegion.zw + vAtlasRegion.xy;
     vec4 texel    = texture(uAtlas, atlas_uv);
-    FragColor     = vec4(vColor.rgb * texel.rgb, vColor.a * texel.a);
+    FragColor     = vec4(base_color * texel.rgb, vColor.a * texel.a);
     return;
   }
   vec2  centered = vUV - 0.5;
@@ -42,5 +47,5 @@ void main () {
   float distance = sdf_shape(vShape, pixel, vSize, vOffset);
   float edge     = fwidth(distance);
   float alpha    = 1.0 - smoothstep(-edge, edge, distance);
-  FragColor      = vec4(vColor.rgb, vColor.a * alpha);
+  FragColor      = vec4(base_color, vColor.a * alpha);
 }

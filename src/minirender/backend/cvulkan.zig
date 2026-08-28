@@ -37,6 +37,19 @@ const minirender = struct {
 const cvk = @import("cvulkan");
 
 //______________________________________
+// @section Color Space
+//____________________________
+pub fn srgb_to_linear (color :[4]f32) [4]f32 {
+  var result :[4]f32= .{ 0, 0, 0, color[3] };
+  for (color[0..3], 0..) |channel, id| {
+    result[id] = if (channel <= 0.04045) channel / 12.92
+      else std.math.pow(f32, (channel + 0.055) / 1.055, 2.4);
+  }
+  return result;
+}
+
+
+//______________________________________
 // @section Object Fields
 //____________________________
 pub const Type = struct {
@@ -65,13 +78,14 @@ pub const Type = struct {
     system :*msys.System,
     atlas  :minirender.atlas.Args,
     debug  :bool = false,
+    vsync  :bool = true,
   };
   //__________________
   pub fn create (A :std.mem.Allocator, arg :create_args) !@This() {
     var result :@This()= .{
       .A            = A,
       .store        = .create(A),
-      .gpu          = try .create(arg.system, A),
+      .gpu          = try .create(arg.system, A, arg.vsync, arg.debug),
       .sync         = undefined,
       .depth        = undefined,
       .target_clear = undefined,
@@ -86,14 +100,14 @@ pub const Type = struct {
     };
     result.sync         = .create(&result.gpu);
     result.geometry     = .create(&result.gpu, A);
-    result.target_clear = .clear(&result.gpu, result.color_clear);
+    result.target_clear = .clear(&result.gpu, render.srgb_to_linear(result.color_clear));
     result.target_draw  = .draw(&result.gpu);
     result.depth        = .create(&result.gpu, &result.sync, result.target_draw.ct.depth_stencil.format);
     result.target_clear.depth_bind(&result.depth);
     result.target_draw.depth_bind(&result.depth);
     result.descriptors  = .create(&result.gpu);
     result.pipeline     = .create(&result.gpu, &result.geometry.shader, &result.target_draw, &result.descriptors);
-    result.lines        = .create(&result.gpu, &result.target_draw);
+    result.lines        = .create(&result.gpu, &result.target_draw, A);
     const atlas_grid    = minirender.atlas.grid(arg.atlas.cells_len + minirender.font.glyphs_len);
     result.atlas        = try .create(&result.gpu, &result.sync,
       arg.atlas.cell_width, arg.atlas.cell_height,
@@ -140,7 +154,7 @@ pub const Type = struct {
     });
     R.target_clear.destroy();
     R.target_draw.destroy();
-    R.target_clear = .clear(&R.gpu, R.color_clear);
+    R.target_clear = .clear(&R.gpu, render.srgb_to_linear(R.color_clear));
     R.target_draw  = .draw(&R.gpu);
     R.depth.destroy(&R.gpu);
     R.depth        = .create(&R.gpu, &R.sync, R.target_draw.ct.depth_stencil.format);
@@ -194,7 +208,7 @@ pub const Type = struct {
       .opaque_len   = R.geometry.opaque_len,
     };
     R.cull.record(&R.gpu, &R.sync,
-      &R.geometry.instance_buffer[R.sync.frameID],
+      &R.geometry.instance_local[R.sync.frameID],
       &R.geometry.indirect_buffer[R.sync.frameID],
       &push);
   }
@@ -261,6 +275,23 @@ pub const Type = struct {
     }
     const status = R.gpu.device.swapchain.present(R.sync.imageID, &R.gpu.device.queue);
     if (status == .error_out_of_date or status == .suboptimal) R.swapchain_recreate();
+  }
+  //__________________
+  pub fn reassign_instance (
+      R     : *@This(),
+      id    : minirender.Instance.Id,
+      S     : @import("../geometry.zig").Shape.Id,
+      world : minirender.Mat4,
+      C     : minirender.Color,
+    ) void {
+    const slot   = R.store.instance_reassign(id, S, world, C) orelse return;
+    const bounds = R.store.instance_bounds(id);
+    R.geometry.patch_add(slot, .{
+      .world  = minirender.mat4_to_f32(&world),
+      .color  = minirender.vec4_to_f32(&C),
+      .center = .{ bounds.center[0], bounds.center[1], bounds.center[2], 1 },
+      .extent = .{ bounds.extent[0], bounds.extent[1], bounds.extent[2], 0 },
+    });
   }
   //__________________
   pub fn update_instance (

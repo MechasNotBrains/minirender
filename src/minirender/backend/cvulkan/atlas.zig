@@ -18,7 +18,7 @@ const minirender = struct {
 //_______________________________________
 // @section Constants
 //_____________________________
-pub const format = cvk.vk.Format.r8g8b8a8_unorm;
+pub const format = cvk.vk.Format.r8g8b8a8_srgb;
 pub const bytes_per_pixel = 4;
 
 
