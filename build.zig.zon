@@ -8,8 +8,8 @@
             .hash = "mstd-0.0.53-XZG3ZgCCBQBF0ZrY59rqLyYn2wNBkz3fcx7turgwg_Uh",
         },
         .mmath = .{
-            .url = "git+https://codeberg.org/heysokam/mmath#f48c03ae619e8053da616f0ce8456490231a095e",
-            .hash = "mmath-0.0.0-SaMxXgTvAwDh6TYIJr5M-V-92Wa2dCfdUIdlRtPxy_PS",
+            .url = "git+https://codeberg.org/heysokam/mmath#f1f44bf7b6b9b9929f2ce8227c62153c0b6e3b28",
+            .hash = "mmath-0.0.0-SaMxXgTvAwA0H7m5mxB4WsE8nqms-w9XCHR6iq8j3UtA",
         },
         .mcam = .{
             .url = "git+https://codeberg.org/heysokam/mcam#fcdda7cbe40b444a94775067be243fccad20ba56",
