@@ -7,6 +7,7 @@ const This = @This();
 // @deps std
 const std = @import("std");
 // @deps minirender
+const mstd = @import("mstd");
 const glfw = @import("mglfw");
 const msys = @import("msys");
 const cvk  = @import("cvulkan");
@@ -54,6 +55,7 @@ pub const Type = struct {
       .application  = &application,
       .extensions   = instance_extensions,
       .validation   = if (debug) null else &validation_disabled,
+      .portability  = mstd.macos,
     });
     result.device = try .create(system, &result.instance, vsync);
     return result;
