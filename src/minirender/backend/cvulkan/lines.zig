@@ -245,7 +245,7 @@ pub fn draw (
     .offset = .{ .x = 0, .y = 0 },
     .extent = gpu.device.swapchain.cfg.imageExtent,
   });
-  S.buffer[frameID].buffer_vertex_bind(&L.vertex_buffer[frameID].data);
+  S.buffer[frameID].buffer_vertex_bind(&L.vertex_buffer[frameID].data, 0, 0);
   S.buffer[frameID].draw(.{
     .elements_len = L.vertex_len,
     .instance_len = 1,

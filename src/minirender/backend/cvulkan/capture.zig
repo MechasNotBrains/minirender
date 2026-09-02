@@ -34,7 +34,7 @@ pub fn frame (
     .allocator       = &gpu.instance.allocator,
     .size            = needed,
     .usage           = .initOne(.transfer_dst),
-    .memory          = .initMany(&.{ .host_visible, .host_coherent }),
+    .memory_flags    = .initMany(&.{ .host_visible, .host_coherent }),
   });
   defer readback.destroy(&gpu.device.logical, &gpu.instance.allocator);
   var memory :cvk.Memory= .create(.{

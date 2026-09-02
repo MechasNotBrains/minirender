@@ -60,7 +60,7 @@ pub const Host = struct {
       .allocator       = &gpu.instance.allocator,
       .size            = bytes,
       .usage           = usage,
-      .memory          = .initMany(&.{ .host_visible, .host_coherent }),
+      .memory_flags    = .initMany(&.{ .host_visible, .host_coherent }),
     });
     B.memory = .create(.{
       .device_logical  = &gpu.device.logical,
@@ -118,7 +118,7 @@ pub const Local = struct {
       .allocator       = &gpu.instance.allocator,
       .size            = bytes,
       .usage           = usage.unionWith(.initOne(.transfer_dst)),
-      .memory          = .initOne(.device_local),
+      .memory_flags    = .initOne(.device_local),
     });
     B.memory = .create(.{
       .device_logical  = &gpu.device.logical,
@@ -169,7 +169,7 @@ pub const Type = struct {
       .allocator       = &gpu.instance.allocator,
       .size            = size,
       .usage           = .initOne(.transfer_src),
-      .memory          = .initMany(&.{ .host_visible, .host_coherent }),
+      .memory_flags    = .initMany(&.{ .host_visible, .host_coherent }),
     });
     result.vram.data   = .create(.{
       .device_physical = &gpu.device.physical,
@@ -177,7 +177,7 @@ pub const Type = struct {
       .allocator       = &gpu.instance.allocator,
       .size            = size,
       .usage           = usage.unionWith(.initOne(.transfer_dst)),
-      .memory          = .initOne(.device_local),
+      .memory_flags    = .initOne(.device_local),
     });
     result.ram.memory  = .create(.{
       .device_logical  = &gpu.device.logical,

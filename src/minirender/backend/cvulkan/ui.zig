@@ -385,7 +385,7 @@ pub fn draw (
     .pipeline_layout = &U.graphics.layout,
     .bindpoint       = .graphics,
   });
-  S.buffer[frameID].buffer_vertex_bind(&U.vertex_buffer.vram.data);
+  S.buffer[frameID].buffer_vertex_bind(&U.vertex_buffer.vram.data, 0, 0);
   S.buffer[frameID].buffer_index_bind(&U.index_buffer.vram.data, .{ .kind = .uint32 });
   S.buffer[frameID].draw(.{
     .indexed      = true,

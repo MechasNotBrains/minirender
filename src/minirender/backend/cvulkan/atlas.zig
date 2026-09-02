@@ -103,7 +103,7 @@ pub fn create (
     .allocator       = &gpu.instance.allocator,
     .format          = This.format,
     .usage           = .initMany(&.{ .transfer_dst, .sampled }),
-    .memory          = .initOne(.device_local),
+    .memory_flags    = .initOne(.device_local),
     .dimensions      = .dim2d,
     .width           = result.width(),
     .height          = result.height(),
@@ -184,7 +184,7 @@ pub fn load (
     .allocator       = &gpu.instance.allocator,
     .size            = pixels.len,
     .usage           = .initOne(.transfer_src),
-    .memory          = .initMany(&.{ .host_visible, .host_coherent }),
+    .memory_flags    = .initMany(&.{ .host_visible, .host_coherent }),
   });
   defer staging.destroy(&gpu.device.logical, &gpu.instance.allocator);
   var memory :cvk.Memory= .create(.{

@@ -49,7 +49,7 @@ pub fn create (
     .allocator       = &gpu.instance.allocator,
     .format          = format,
     .usage           = .initOne(.depth_stencil_attachment),
-    .memory          = .initOne(.device_local),
+    .memory_flags    = .initOne(.device_local),
     .dimensions      = .dim2d,
     .width           = gpu.device.swapchain.cfg.imageExtent.width,
     .height          = gpu.device.swapchain.cfg.imageExtent.height,
