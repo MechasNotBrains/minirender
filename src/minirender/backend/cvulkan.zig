@@ -176,17 +176,20 @@ pub const Type = struct {
       if (status != .error_out_of_date) break;
       R.swapchain_recreate();
     }
+    if (R.sync.imageID >= R.gpu.device.swapchain.images.len) return;
     R.sync.framesPending[frameID].reset(&R.gpu.device.logical);
     R.sync.buffer[frameID].reset(.{});
     R.sync.buffer[frameID].begin();
   }
   //__________________
   pub fn clear (R :*@This()) void {
+    if (R.sync.imageID >= R.gpu.device.swapchain.images.len) return;
     R.target_clear.begin(&R.gpu, &R.sync, R.sync.imageID, true);
     R.target_clear.end(&R.gpu, &R.sync, R.sync.imageID, false);
   }
   //__________________
   pub fn draw (R :*@This(), C :*const mcam.Camera) void {
+    if (R.sync.imageID >= R.gpu.device.swapchain.images.len) return;
     R.geometry.upload(&R.store, &R.gpu, &R.sync);
     const vp = C.view_projection();
     const viewProjection = minirender.mat4_to_f32(&vp);
@@ -218,7 +221,7 @@ pub const Type = struct {
     const push :minirender.Pipeline.Push= .{ .viewProjection = viewProjection, .textured = R.textured };
     R.descriptors.instances_bind(&R.gpu, R.sync.frameID, &R.cull.instances[R.sync.frameID]);
     R.descriptors.atlas_bind(&R.gpu, R.sync.frameID, &R.atlas);
-    R.sync.buffer[R.sync.frameID].buffer_vertex_bind(&R.geometry.vertex_buffer.vram.data);
+    R.sync.buffer[R.sync.frameID].buffer_vertex_bind(&R.geometry.vertex_buffer.vram.data, 0, 0);
     R.sync.buffer[R.sync.frameID].buffer_index_bind(&R.geometry.index_buffer.vram.data, .{ .kind = .uint32 });
     R.pass_draw(&R.pipeline.graphics_opaque, &push, 0, R.geometry.opaque_len, 0);
     R.pass_draw(&R.pipeline.graphics_alpha, &push, R.geometry.opaque_len, R.geometry.indirect_len - R.geometry.opaque_len, @sizeOf(u32));
@@ -267,6 +270,7 @@ pub const Type = struct {
   //__________________
   pub fn present (R :*@This()) void {
     defer R.sync.nextFrame();
+    if (R.sync.imageID >= R.gpu.device.swapchain.images.len) return;
     R.sync.buffer[R.sync.frameID].end();
     R.sync.submit(&R.gpu, R.sync.imageID);
     if (R.capture_target) |trg| {
