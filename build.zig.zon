@@ -8,7 +8,7 @@
             .hash = "mstd-0.0.54-XZG3ZjmIBQDpwalP3SjtkAMe62dsgF0yeO_pe0alSygk",
         },
         .mmath = .{
-            .url = "git+https://codeberg.org/heysokam/mmath#5c912a7dd4faee57ff3f571a5f02f8969f20a062",
+            .url = "git+https://codeberg.org/heysokam/mmath#f54f7cb237ac94df98d9dd21c5230006b19a678d",
             .hash = "mmath-0.0.0-SaMxXpP1AwDe6XRGF0HMPrcgV8YsYNoRzPIRzMLMefhd",
         },
         .mcam = .{
