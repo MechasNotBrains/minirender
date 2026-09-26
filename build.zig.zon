@@ -12,8 +12,8 @@
             .hash = "mmath-0.0.0-SaMxXp1cFwCjcbvC8N22SqrwEOfF9Evn2lAdjzvBPpk7",
         },
         .mcam = .{
-            .url = "git+https://codeberg.org/heysokam/mcam#bab0b115c808a6597e12865c6f4255a0b81db9c1",
-            .hash = "mcam-0.0.0-HBSODLhOAADjCL6HR3xTLiNnftN9naCQPuiT4fWvf7JM",
+            .url = "git+https://codeberg.org/heysokam/mcam#1e1d5e22f60939ff67c9d560ea4a81dbdb161534",
+            .hash = "mcam-0.0.0-HBSODLhOAAAOwJQLGsqvnQogOLYksvTtqIxqoduYrYWO",
         },
         .msys = .{
             .url = "git+https://codeberg.org/heysokam/msys#b6febfc0783daff873bbae77f3b7c4d60de532f7",
