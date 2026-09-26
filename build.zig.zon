@@ -24,8 +24,8 @@
             .hash = "minp-0.0.0-0wM5txRhAAAaITUB7V7nGpKiy0_bWdiums611yW7XxHI",
         },
         .mui = .{
-            .url = "git+https://codeberg.org/heysokam/mui#f4376a4a87fb63dc6f48d5834cf66cc0c0cf622a",
-            .hash = "mui-0.0.0-5UxUhU_JAAA7AZJ2sG6lHXnvNSrykj7FyIx79_HoHK-q",
+            .url = "git+https://codeberg.org/heysokam/mui#85aaea03c10bdf71720428f920580aa9d81957be",
+            .hash = "mui-0.0.0-5UxUhfGbAACZVzR9Ig0Pn56MZ1Puiga3ih7-xrBeSYgS",
         },
         .mgl = .{
             .url = "git+https://codeberg.org/heysokam/mgl#34021b707406df6077ad0a1a47127f79a8cd41ff",
