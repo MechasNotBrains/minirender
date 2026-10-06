@@ -20,8 +20,8 @@
             .hash = "msys-0.0.0-ha7hDBqGAAAGr3PSLwOhfeSezp7nXXBZIS1dbgUS0RPq",
         },
         .minp = .{
-            .url = "git+https://codeberg.org/heysokam/minp#fe4cc1b0d5deae7ed800620b0c7a25c0277a9654",
-            .hash = "minp-0.0.0-0wM5txRhAACds4ynIXwkp3EssvDp92_1ITiC-wxTXh3c",
+            .url = "git+https://codeberg.org/heysokam/minp#ece01809e6866560cebbd149ae35e0abac5dc684",
+            .hash = "minp-0.0.0-0wM5txRhAADKHTsZVBy0pMrWh0WrbCsvQX5VBjmQqZZe",
         },
         .mui = .{
             .url = "git+https://codeberg.org/heysokam/mui#d46f62f8bc86cd390bd68856f77de739e16d0f18",
