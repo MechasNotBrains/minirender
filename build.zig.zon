@@ -4,8 +4,8 @@
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
         .mstd = .{
-            .url = "git+https://codeberg.org/heysokam/mstd#2398f2e471d01ede28263253653e691d55fe0683",
-            .hash = "mstd-0.0.55-XZG3Zj64BQDju9nNr0PrFzpRwyEdmY8GG1QKYGKeLovT",
+            .url = "git+https://codeberg.org/heysokam/mstd#ecb7c594857b745da008669a21a29d7feb97f510",
+            .hash = "mstd-0.0.56-XZG3Zk68BQCBJicPif0Ko8Rnojek3JDMjN9PcSx9Lc2p",
         },
         .mmath = .{
             .url = "git+https://codeberg.org/heysokam/mmath#db10b0a67535fc7c9d60e9d1e41dc3cef0da4daa",
