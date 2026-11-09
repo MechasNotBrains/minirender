@@ -1,11 +1,11 @@
 .{
     .name = .minirender,
     .version = "0.0.0",
-    .minimum_zig_version = "0.16.0",
+    .minimum_zig_version = "0.17.0",
     .dependencies = .{
         .mstd = .{
-            .url = "git+https://codeberg.org/heysokam/mstd#dbdc863cc5dbfc876b4c622f0a6004da553c7a58",
-            .hash = "mstd-0.0.68-XZG3ZiRtBgAfsJ9JyZbxSqMdCQLkXO8n4sHAaqndAduE",
+            .url = "git+https://codeberg.org/heysokam/mstd#27009b3120084ebe81c91573fc6ebf0ccee918b8",
+            .hash = "mstd-0.1.0-XZG3ZrRtBgBGj-LxKY3juYCdSRyBdm0NYfhN5UPabUFl",
         },
         .mmath = .{
             .url = "git+https://codeberg.org/heysokam/mmath#9de067e1e60964013e5f2a40b77ebaf01276cdc0",
