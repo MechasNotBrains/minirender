@@ -6,8 +6,11 @@ layout(location = 2) in vec2      vSize;
 layout(location = 3) flat in uint vShape;
 layout(location = 4) in float     vOffset;
 layout(location = 5) in vec4      vAtlasRegion;
+layout(location = 6) flat in uint vFont;
+layout(location = 7) flat in uint vCoverage;
 
 layout(set = 0, binding = 1) uniform sampler2D uAtlas;
+layout(set = 0, binding = 2) uniform sampler2D uFont;
 
 layout(location = 0) out vec4 FragColor;
 
@@ -36,6 +39,12 @@ vec3 srgb_to_linear (vec3 value) {
 
 void main () {
   vec3 base_color = srgb_to_linear(vColor.rgb);
+  if (vFont != 0u) {
+    vec4 texel = texture(uFont, vUV * vAtlasRegion.zw + vAtlasRegion.xy);
+    if (vCoverage != 0u) FragColor = vec4(base_color, vColor.a * texel.r);
+    else                 FragColor = vec4(base_color * texel.rgb, vColor.a * texel.a);
+    return;
+  }
   if (vAtlasRegion.z > 0.0) {
     vec2 atlas_uv = vUV * vAtlasRegion.zw + vAtlasRegion.xy;
     vec4 texel    = texture(uAtlas, atlas_uv);

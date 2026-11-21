@@ -25,7 +25,7 @@ from ./src/build/libs.zig import freetype
 const mfont         = confy.dependency("mfont",   "https://codeberg.org/heysokam/mfont",       (deps: &[mstd, mmath, mimg, freetype.dependency]))
 const mui           = confy.dependency("mui",     "https://codeberg.org/heysokam/mui",         (deps: &[mstd, mmath, mimg, mfont], entry: "zig/core.none.zig"))
 # Renderer
-const minirender    = confy.dependency("minirender",    "https://github.com/MechasNotBrains/minirender", (deps: &[mstd, mmath, mcam, mglfw, msys, minp, mui, cvulkan_c, cvulkan]))
+const minirender    = confy.dependency("minirender",    "https://github.com/MechasNotBrains/minirender", (deps: &[mstd, mmath, mcam, mglfw, msys, minp, mimg, mfont, mui, cvulkan_c, cvulkan]))
 const minirender_gl = confy.dependency("minirender_gl", "https://github.com/MechasNotBrains/minirender", (deps: &[mstd, mmath, mcam, mglfw, msys, minp, mgl, mui], entry: "minirender/core.gl.zig"))
 const dependencies  = &[mstd, mmath, minp, mcam, mglfw, msys, mui, cvulkan_c, cvulkan, minirender, zigimg, zigimg_options, mimg, freetype.dependency, mfont]
 const deps_gl       = &[mstd, mmath, minp, mcam, mglfw, msys, mgl, mui, zigimg, zigimg_options, mimg, freetype.dependency, mfont, minirender_gl]

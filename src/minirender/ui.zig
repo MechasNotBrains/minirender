@@ -18,10 +18,6 @@ const minirender = struct {
 pub const View    = mui.View;
 pub const Scene   = mui.Scene;
 pub const Shape   = mui.Shape;
-pub const Pixmap  = @import("./ui/pixmap.zig").Pixmap;
-pub const font5x7 = @import("./ui/font5x7.zig");
-pub const tree    = @import("./ui/tree.zig");
-pub const Tree    = tree.Type;
 
 
 pub const Backend = union(enum) {

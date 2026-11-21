@@ -4,13 +4,12 @@
 pub const ui = @This();
 pub const Ui = @This().Type;
 const This = @This();
-pub const View    = mui.View;
-pub const Scene   = mui.Scene;
-pub const Shape   = mui.Shape;
-pub const Pixmap  = @import("../../ui/pixmap.zig").Pixmap;
-pub const font5x7 = @import("../../ui/font5x7.zig");
-pub const tree    = @import("../../ui/tree.zig");
-pub const Tree    = tree.Type;
+pub const View      = mui.View;
+pub const Scene     = mui.Scene;
+pub const Shape     = mui.Shape;
+pub const Container = mui.Container;
+pub const Text      = mui.Text;
+pub const Font      = mui.Font;
 // @deps std
 const std = @import("std");
 // @deps minirender
@@ -22,9 +21,12 @@ const minirender = struct {
   const sync   = @import("./sync.zig");
   const Buffer = @import("./buffer.zig").Buffer;
   const Host   = @import("./buffer.zig").buffer.Host;
-  const Target = @import("./target.zig").Target;
-  const Atlas  = @import("./atlas.zig").Atlas;
+  const Target  = @import("./target.zig").Target;
+  const Atlas   = @import("./atlas.zig").Atlas;
+  const Texture = @import("./texture.zig").Texture;
 };
+const mstd  = @import("mstd");
+const mfont = @import("mfont");
 const frames_Len = minirender.sync.frames_Len;
 
 
@@ -33,6 +35,9 @@ const frames_Len = minirender.sync.frames_Len;
 //_____________________________
 pub const instances_id = 0;
 pub const atlas_id     = 1;
+pub const font_id      = 2;
+//__________________
+pub const Slot = enum(u32) { atlas, font };
 pub const quad_indices = [6]u32{ 0, 1, 2, 0, 2, 3 };
 pub const quad_vertices = [4][4]f32{
   .{ 0, 0,  0, 0 },
@@ -75,10 +80,10 @@ pub const Instance = extern struct {
   uv       :[4]f32 = .{ 0, 0, 0, 0 },
   kind     :u32    = 0,
   offset   :f32    = 0,
-  padding0 :u32    = 0,
-  padding1 :u32    = 0,
+  font     :u32    = 0,
+  coverage :u32    = 0,
 
-  pub fn upload (I :*@This(), shape :*const mui.Shape, origin :[2]f32) void {
+  pub fn upload (I :*@This(), shape :*const mui.Shape, origin :[2]f32, font :?*const minirender.Texture) void {
     I.scale    = .{ @floatCast(shape.width()), @floatCast(shape.height()) };
     I.position = .{
       @as(f32, @floatCast(shape.x())) - I.scale[0] * 0.5 - origin[0],
@@ -94,6 +99,9 @@ pub const Instance = extern struct {
     };
     I.kind     = @backingInt(shape.kind);
     I.offset   = @floatCast(shape.offset());
+    const texture = font orelse return;
+    I.font     = @intFromBool(shape.kind == .sampled and shape.texture == @intFromEnum(This.Slot.font));
+    I.coverage = @intFromBool(texture.format == .r8);
   }
 };
 
@@ -164,6 +172,7 @@ pub const Type = struct {
   pool          :cvk.descriptor.Pool   = std.mem.zeroes(cvk.descriptor.Pool),
   layout        :cvk.descriptor.Layout = std.mem.zeroes(cvk.descriptor.Layout),
   set           :[This.frames_Len]cvk.descriptor.Set = std.mem.zeroes([This.frames_Len]cvk.descriptor.Set),
+  font          :?minirender.Texture = null,
 
   pub const Screen   = This.Screen;
   pub const Shape    = This.Shape;
@@ -173,8 +182,11 @@ pub const Type = struct {
   pub const destroy  = This.destroy;
   pub const add      = This.add;
   pub const add_many = This.add_many;
-  pub const clear    = This.clear;
-  pub const sync     = This.sync;
+  pub const clear     = This.clear;
+  pub const add_font  = This.add_font;
+  pub const add_label = This.add_label;
+  pub const label_set = This.label_set;
+  pub const sync      = This.sync;
   pub const draw     = This.draw;
 };
 
@@ -199,6 +211,15 @@ fn atlas_binding (image :?*const cvk.vk.DescriptorImageInfo) cvk.descriptor.Bind
     .image = image,
   });
 }
+//__________________
+fn font_binding (image :?*const cvk.vk.DescriptorImageInfo) cvk.descriptor.Binding {
+  return .create(.{
+    .id    = This.font_id,
+    .kind  = .combined_image_sampler,
+    .stage = .create(.fragment),
+    .image = image,
+  });
+}
 
 
 //_______________________________________
@@ -213,6 +234,7 @@ pub fn destroy (U :*const Type, gpu :*minirender.Gpu) void {
   mutable.pool.destroy(&gpu.device.logical, &gpu.instance);
   mutable.layout.destroy(&gpu.device.logical, &gpu.instance);
   mutable.shader.destroy(gpu);
+  if (mutable.font) |*font| font.destroy(gpu);
   mutable.scene.destroy();
   mutable.view.destroy();
   mutable.instance_len = 0;
@@ -233,11 +255,14 @@ pub fn create (
   result.stages[1] = result.shader.frag.stage;
 
   const instances = This.instances_binding(null);
-  const atlas     = This.atlas_binding(null);
+  const images    = [_]cvk.descriptor.Binding{ This.atlas_binding(null), This.font_binding(null) };
+  var layouts :[1 + images.len]cvk.vk.DescriptorSetLayoutBinding= undefined;
+  layouts[0] = instances.layout;
+  for (images, 1..) |image, id| layouts[id] = image.layout;
   result.layout = .create(.{
     .device_logical = &gpu.device.logical,
     .allocator      = &gpu.instance.allocator,
-    .bindings       = &.{ instances.layout, atlas.layout },
+    .bindings       = &layouts,
   });
   result.pool   = .create(.{
     .device_logical = &gpu.device.logical,
@@ -248,7 +273,7 @@ pub fn create (
       .descriptorCount = This.frames_Len,
     }, .{
       .type            = @backingInt(cvk.vk.DescriptorType.combined_image_sampler),
-      .descriptorCount = This.frames_Len,
+      .descriptorCount = This.frames_Len * images.len,
     } },
   });
   for (0..This.frames_Len) |id| result.set[id] = .allocate(.{
@@ -322,6 +347,40 @@ pub fn clear (U :*Type) void {
   U.scene.shapes.destroy();
   U.scene.shapes = .create_empty(U.scene.A);
 }
+//__________________
+pub fn add_font (
+    U     : *Type,
+    gpu   : *minirender.Gpu,
+    S     : *const minirender.Sync,
+    bytes : mstd.cstring,
+    arg   : mui.Font.read_args,
+  ) !mui.Font.Id {
+  var loaded :mui.Font= .{ .data = try mfont.atlas.Font.load(bytes, U.scene.A, arg) };
+  errdefer loaded.data.destroy(U.scene.A);
+  const result = try U.scene.fonts.add(loaded);
+  const font   = U.scene.fonts.mget(result) orelse return error.minirender_ui_MissingFont;
+  if (U.font) |*texture| texture.destroy(gpu);
+  U.font = try minirender.Texture.create(gpu, S, &font.data.atlas.image);
+  font.sampler = @intFromEnum(This.Slot.font);
+  return result;
+}
+//__________________
+pub fn add_label (
+    U         : *Type,
+    container : mui.Container.Id,
+    font      : mui.Font.Id,
+    arg       : mui.Text.create_args,
+  ) !mui.Text.Id {
+  return try U.scene.add_label(container, font, arg);
+}
+//__________________
+pub fn label_set (
+    U     : *Type,
+    label : mui.Text.Id,
+    str   : mstd.cstring,
+  ) !void {
+  try U.scene.label_set(label, str);
+}
 
 
 //_______________________________________
@@ -343,7 +402,7 @@ pub fn sync (
   for (shapes) |*shape| {
     if (shape.hidden or shape.kind == .curve) continue;
     var entry :This.Instance= .{};
-    entry.upload(shape, origin);
+    entry.upload(shape, origin, if (U.font) |*font| font else null);
     U.instances[S.frameID].write(U.instance_len * @sizeOf(This.Instance), std.mem.asBytes(&entry));
     U.instance_len += 1;
   }
@@ -373,6 +432,10 @@ pub fn draw (
   };
   const atlas = This.atlas_binding(&image_info);
   U.set[frameID].update(.{ .device_logical = &gpu.device.logical, .binding = &atlas });
+
+  const font_info = if (U.font) |*font| font.info() else image_info;
+  const font      = This.font_binding(&font_info);
+  U.set[frameID].update(.{ .device_logical = &gpu.device.logical, .binding = &font });
 
   const push :This.Screen= .{ .size = U.screen };
   S.buffer[frameID].graphics_bind(&U.graphics);

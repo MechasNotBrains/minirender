@@ -10,8 +10,8 @@ struct Instance {
   vec4  uv;
   uint  kind;
   float offset;
-  uint  padding0;
-  uint  padding1;
+  uint  font;
+  uint  coverage;
 };
 
 layout(set = 0, binding = 0, std430) readonly buffer Instances {
@@ -28,6 +28,8 @@ layout(location = 2) out vec2      vSize;
 layout(location = 3) flat out uint vShape;
 layout(location = 4) out float     vOffset;
 layout(location = 5) out vec4      vAtlasRegion;
+layout(location = 6) flat out uint vFont;
+layout(location = 7) flat out uint vCoverage;
 
 void main () {
   Instance self = instances[gl_InstanceIndex];
@@ -40,4 +42,6 @@ void main () {
   vShape        = self.kind;
   vOffset       = self.offset;
   vAtlasRegion  = self.uv;
+  vFont         = self.font;
+  vCoverage     = self.coverage;
 }

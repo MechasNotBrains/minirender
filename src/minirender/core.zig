@@ -189,6 +189,9 @@ pub const Type = struct {
   pub fn ui_clear    (R :*@This()) void { R.backend.ui_clear(); }
   pub fn ui_view     (R :*@This()) *ui.View  { return R.backend.ui_view(); }
   pub fn ui_scene    (R :*@This()) *ui.Scene { return R.backend.ui_scene(); }
+  pub fn ui_add_font  (R :*@This(), bytes :mstd.cstring, arg :ui.Font.read_args) !ui.Font.Id { return try R.backend.ui_add_font(bytes, arg); }
+  pub fn ui_add_label (R :*@This(), container :ui.Container.Id, font :ui.Font.Id, arg :ui.Text.create_args) !ui.Text.Id { return try R.backend.ui_add_label(container, font, arg); }
+  pub fn ui_label_set (R :*@This(), label :ui.Text.Id, str :mstd.cstring) !void { try R.backend.ui_label_set(label, str); }
   //__________________
   pub fn atlas_scale  (R :*const @This(), handle :atlas.Handle) [2]f32 { return R.backend.atlas_scale(handle); }
   pub fn atlas_offset (R :*const @This(), handle :atlas.Handle) [2]f32 { return R.backend.atlas_offset(handle); }

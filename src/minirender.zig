@@ -30,6 +30,5 @@ pub const cull       = @import("./minirender/core.zig").cull;
 // UI
 pub const ui         = @import("./minirender/core.zig").ui;
 pub const Ui         = @import("./minirender/core.zig").Ui;
-pub const font5x7    = @import("./minirender/ui/font5x7.zig");
 // Renderer
 pub const Render     = @import("./minirender/core.zig").Render;

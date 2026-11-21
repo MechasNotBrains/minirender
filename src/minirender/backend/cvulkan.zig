@@ -6,6 +6,7 @@ pub const Render = @This().Type;
 // @deps std
 const std        = @import("std");
 // @deps minirender
+const mstd       = @import("mstd");
 const msys       = @import("msys");
 const mcam       = @import("mcam");
 const minirender = struct {
@@ -27,7 +28,6 @@ const minirender = struct {
   const Cull        = @import("./cvulkan/cull.zig").Cull;
   const ui          = @import("./cvulkan/ui.zig");
   const Ui          = @import("./cvulkan/ui.zig").Ui;
-  const font        = @import("./cvulkan/font.zig");
   const capture     = @import("./cvulkan/capture.zig");
   const Target      = @import("./cvulkan/target.zig").Target;
   const Depth       = @import("./cvulkan/depth.zig").Depth;
@@ -108,13 +108,12 @@ pub const Type = struct {
     result.descriptors  = .create(&result.gpu);
     result.pipeline     = .create(&result.gpu, &result.geometry.shader, &result.target_draw, &result.descriptors);
     result.lines        = .create(&result.gpu, &result.target_draw, A);
-    const atlas_grid    = minirender.atlas.grid(arg.atlas.cells_len + minirender.font.glyphs_len);
+    const atlas_grid    = minirender.atlas.grid(arg.atlas.cells_len);
     result.atlas        = try .create(&result.gpu, &result.sync,
       arg.atlas.cell_width, arg.atlas.cell_height,
       atlas_grid.columns, atlas_grid.rows, A);
     result.cull         = .create(&result.gpu);
     result.ui           = try .create(&result.gpu, &result.sync, &result.target_draw, A);
-    minirender.font.upload(&result.atlas, &result.gpu, &result.sync);
     return result;
   }
   //__________________
@@ -331,14 +330,12 @@ pub const Type = struct {
   }
   //__________________
   pub fn atlas_resize (R :*@This(), arg :minirender.atlas.Args) !void {
-    const atlas_grid = minirender.atlas.grid(arg.cells_len + minirender.font.glyphs_len);
+    const atlas_grid = minirender.atlas.grid(arg.cells_len);
     R.gpu.device.wait();
     R.atlas.destroy(&R.gpu);
     R.atlas = try .create(&R.gpu, &R.sync,
       arg.cell_width, arg.cell_height,
       atlas_grid.columns, atlas_grid.rows, R.A);
-    minirender.font.reset();
-    minirender.font.upload(&R.atlas, &R.gpu, &R.sync);
   }
   //__________________
   pub fn cull_counters (R :*@This()) minirender.cull.Counters { return R.cull.counters_read(&R.gpu, &R.sync); }
@@ -367,14 +364,14 @@ pub const Type = struct {
   pub fn ui_clear    (R :*@This()) void { R.ui.clear(); }
   pub fn ui_view     (R :*@This()) *minirender.ui.View { return &R.ui.view; }
   pub fn ui_scene    (R :*@This()) *minirender.ui.Scene { return &R.ui.scene; }
+  pub fn ui_add_font (R :*@This(), bytes :mstd.cstring, arg :minirender.ui.Font.read_args) !minirender.ui.Font.Id { return try R.ui.add_font(&R.gpu, &R.sync, bytes, arg); }
+  pub fn ui_add_label (R :*@This(), container :minirender.ui.Container.Id, font :minirender.ui.Font.Id, arg :minirender.ui.Text.create_args) !minirender.ui.Text.Id { return try R.ui.add_label(container, font, arg); }
+  pub fn ui_label_set (R :*@This(), label :minirender.ui.Text.Id, str :mstd.cstring) !void { try R.ui.label_set(label, str); }
   //__________________
   pub fn atlas_scale  (R :*const @This(), handle :minirender.atlas.Handle) [2]f32 { return R.atlas.image_scale(handle); }
   pub fn atlas_offset (R :*const @This(), handle :minirender.atlas.Handle) [2]f32 { return R.atlas.cell_offset(handle); }
   pub fn atlas_size   (R :*const @This(), handle :minirender.atlas.Handle) minirender.atlas.Size { return R.atlas.image_size(handle); }
-  pub fn atlas_len (R :*const @This()) u32 {
-    if (R.atlas.next_slot < minirender.font.glyphs_len) return 0;
-    return R.atlas.next_slot - minirender.font.glyphs_len;
-  }
+  pub fn atlas_len (R :*const @This()) u32 { return R.atlas.next_slot; }
   //__________________
   pub fn textured_set (R :*@This(), value :bool) void { R.textured = @intFromBool(value); }
 };
