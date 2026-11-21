@@ -34,7 +34,7 @@ fn add_dependencies (
     mod : *std.Build.Module,
     B   : *std.Build,
     trg : std.Build.ResolvedTarget,
-    opt : std.builtin.OptimizeMode,
+    opt : std.lang.Optimize,
   ) void {
   const mstd  = B.dependency("mstd",  .{.target= trg, .optimize= opt });
   const mmath = B.dependency("mmath", .{.target= trg, .optimize= opt });

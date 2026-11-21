@@ -60,12 +60,17 @@ pub const Type = struct {
   }
 
 
-  pub fn add      (U :*Type, shape :minirender.ui.Shape         ) !void { try U.scene.add(shape);       }
-  pub fn add_many (U :*Type, shapes :[]const minirender.ui.Shape) !void { try U.scene.add_many(shapes); }
+  pub fn add (U :*Type, shape :minirender.ui.Shape) !void {
+    var entry = shape;
+    U.scene.unit_to_surface(&entry, U.view.surface.size);
+    _ = try U.scene.shapes.add(entry);
+  }
+  pub fn add_many (U :*Type, shapes :[]const minirender.ui.Shape) !void { for (shapes) |shape| try U.add(shape); }
 
   pub fn sync (U :*Type, screen_width :f32, screen_height :f32) void {
+    U.scene.layout(U.view.surface.size);
     switch (U.backend) {
-      .gl  => |*backend| backend.sync(&U.scene, screen_width, screen_height),
+      .gl  => |*backend| backend.sync(&U.scene, &U.view, screen_width, screen_height),
       .cvk => @panic("cvulkan ui backend not implemented"),
       .vk  => @panic("vulkan ui backend not implemented"),
     }

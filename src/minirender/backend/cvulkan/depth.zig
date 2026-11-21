@@ -48,8 +48,8 @@ pub fn create (
     .device_logical  = &gpu.device.logical,
     .allocator       = &gpu.instance.allocator,
     .format          = format,
-    .usage           = .initOne(.depth_stencil_attachment),
-    .memory_flags    = .initOne(.device_local),
+    .usage           = .create(.depth_stencil_attachment),
+    .memory_flags    = .create(.device_local),
     .dimensions      = .dim2d,
     .width           = gpu.device.swapchain.cfg.imageExtent.width,
     .height          = gpu.device.swapchain.cfg.imageExtent.height,
@@ -68,16 +68,16 @@ pub fn create (
     .image_data      = &result.data,
     .device_logical  = &gpu.device.logical,
     .allocator       = &gpu.instance.allocator,
-    .aspect          = .initOne(.depth),
+    .aspect          = .create(.depth),
   });
   const buffer = S.buffer_begin_onetime(gpu);
   buffer.image_data_transition(&result.data, .{
     .layout_old = .undefined,
     .layout_new = .depth_attachment_optimal,
-    .access_trg = .initMany(&.{ .depth_stencil_attachment_read, .depth_stencil_attachment_write }),
-    .stage_src  = .initOne(.top_of_pipe),
-    .stage_trg  = .initOne(.early_fragment_tests),
-    .aspect     = .initOne(.depth),
+    .access_trg = .create(&.{ .depth_stencil_attachment_read, .depth_stencil_attachment_write }),
+    .stage_src  = .create(.top_of_pipe),
+    .stage_trg  = .create(.early_fragment_tests),
+    .aspect     = .create(.depth),
   });
   S.buffer_end_onetime(&buffer, gpu);
   return result;

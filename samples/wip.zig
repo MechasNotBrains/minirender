@@ -38,11 +38,11 @@ pub fn main (P :std.process.Init) !void {
   try cull_check(&R);
 
   try R.ui_add_many(&.{
-    .create(vec2(4.0,  4.0), vec2(10.0, 6.0), vec4(0.9, 0.3, 0.3, 0.85), .square),
-    .create(vec2(4.0, 12.0), vec2( 6.0, 6.0), vec4(0.3, 0.9, 0.4, 0.85), .circle),
-    .create(vec2(4.0, 20.0), vec2( 6.0, 6.0), vec4(0.4, 0.5, 1.0, 0.85), .triangle),
+    .create(vec2(0.09, 0.07), vec2(0.10, 0.06), vec4(0.9, 0.3, 0.3, 0.85), .rectangle),
+    .create(vec2(0.07, 0.15), vec2(0.06, 0.06), vec4(0.3, 0.9, 0.4, 0.85), .circle),
+    .create(vec2(0.07, 0.23), vec2(0.06, 0.06), vec4(0.4, 0.5, 1.0, 0.85), .triangle),
   });
-  try ui_text(&R, "minirender cvulkan", 16.0, 5.0, 2.5, vec4(1.0, 1.0, 1.0, 1.0));
+  try ui_text(&R, "minirender cvulkan", 0.16, 0.05, 0.025, vec4(1.0, 1.0, 1.0, 1.0));
 
   var selection :[selection_lines.len][3]f32 = undefined;
   var angle :minirender.math.Float = 0.0;
@@ -170,10 +170,10 @@ fn ui_text (
   for (text) |character| {
     const region = minirender.font5x7.region(character);
     if (region[2] > 0.0) try R.ui_add(.{
-      .transform = .create(cursor_x, start_y, width, height),
+      .transform = .create(cursor_x + width * 0.5, start_y + height * 0.5, width, height),
       .uv        = .create(region[0], region[1], region[2], region[3]),
       .color     = color,
-      .kind      = .square,
+      .kind      = .sampled,
     });
     cursor_x += advance;
   }

@@ -186,6 +186,7 @@ pub const Type = struct {
   //__________________
   pub fn ui_add      (R :*@This(), item :ui.Shape)         !void { try R.backend.ui_add(item); }
   pub fn ui_add_many (R :*@This(), items :[]const ui.Shape) !void { try R.backend.ui_add_many(items); }
+  pub fn ui_clear    (R :*@This()) void { R.backend.ui_clear(); }
   pub fn ui_view     (R :*@This()) *ui.View  { return R.backend.ui_view(); }
   pub fn ui_scene    (R :*@This()) *ui.Scene { return R.backend.ui_scene(); }
   //__________________

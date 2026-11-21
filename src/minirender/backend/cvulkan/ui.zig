@@ -48,12 +48,12 @@ pub const quad_vertices = [4][4]f32{
 pub const binding :cvk.vk.VertexInputBindingDescription = .{
   .binding   = 0,
   .stride    = 4 * @sizeOf(f32),
-  .inputRate = @intFromEnum(cvk.vk.VertexInputRate.vertex),
+  .inputRate = @backingInt(cvk.vk.VertexInputRate.vertex),
 };
 //__________________
 pub const attributes = [_]cvk.vk.VertexInputAttributeDescription{
-  .{ .location = 0, .binding = 0, .format = @intFromEnum(cvk.vk.Format.r32g32_sfloat), .offset = 0 },
-  .{ .location = 1, .binding = 0, .format = @intFromEnum(cvk.vk.Format.r32g32_sfloat), .offset = 2 * @sizeOf(f32) },
+  .{ .location = 0, .binding = 0, .format = @backingInt(cvk.vk.Format.r32g32_sfloat), .offset = 0 },
+  .{ .location = 1, .binding = 0, .format = @backingInt(cvk.vk.Format.r32g32_sfloat), .offset = 2 * @sizeOf(f32) },
 };
 
 
@@ -78,14 +78,11 @@ pub const Instance = extern struct {
   padding0 :u32    = 0,
   padding1 :u32    = 0,
 
-  pub fn upload (I :*@This(), shape :*const mui.Shape, screen :[2]f32) void {
+  pub fn upload (I :*@This(), shape :*const mui.Shape, origin :[2]f32) void {
+    I.scale    = .{ @floatCast(shape.width()), @floatCast(shape.height()) };
     I.position = .{
-      @floatCast(shape.transform.data[0] / 100.0 * screen[0]),
-      @floatCast(shape.transform.data[1] / 100.0 * screen[1]),
-    };
-    I.scale    = .{
-      @floatCast(shape.transform.data[2] / 100.0 * screen[0]),
-      @floatCast(shape.transform.data[3] / 100.0 * screen[1]),
+      @as(f32, @floatCast(shape.x())) - I.scale[0] * 0.5 - origin[0],
+      @as(f32, @floatCast(shape.y())) - I.scale[1] * 0.5 - origin[1],
     };
     I.color    = .{
       @floatCast(shape.color.r()), @floatCast(shape.color.g()),
@@ -95,8 +92,8 @@ pub const Instance = extern struct {
       @floatCast(shape.uv.data[0]), @floatCast(shape.uv.data[1]),
       @floatCast(shape.uv.data[2]), @floatCast(shape.uv.data[3]),
     };
-    I.kind     = @intFromEnum(shape.kind);
-    I.offset   = @floatCast(shape.offset);
+    I.kind     = @backingInt(shape.kind);
+    I.offset   = @floatCast(shape.offset());
   }
 };
 
@@ -130,7 +127,7 @@ const vertex = struct {
     return .create(.{
       .device_logical = &gpu.device.logical,
       .allocator      = &gpu.instance.allocator,
-      .stage          = .initOne(.vertex),
+      .stage          = .create(.vertex),
       .code           = code,
     });
   }
@@ -143,7 +140,7 @@ const fragment = struct {
     return .create(.{
       .device_logical = &gpu.device.logical,
       .allocator      = &gpu.instance.allocator,
-      .stage          = .initOne(.fragment),
+      .stage          = .create(.fragment),
       .code           = code,
     });
   }
@@ -159,10 +156,11 @@ pub const Type = struct {
   shader        :This.Shader = .{},
   graphics      :cvk.pipeline.Graphics = .{},
   stages        :[2]cvk.pipeline.ShaderStage = std.mem.zeroes([2]cvk.pipeline.ShaderStage),
-  vertex_buffer :minirender.Buffer = .{ .usage = .initOne(.vertex_buffer) },
-  index_buffer  :minirender.Buffer = .{ .usage = .initOne(.index_buffer) },
-  instances     :[This.frames_Len]minirender.Host = @splat(.{ .usage = .initOne(.storage_buffer) }),
+  vertex_buffer :minirender.Buffer = .{ .usage = .create(.vertex_buffer) },
+  index_buffer  :minirender.Buffer = .{ .usage = .create(.index_buffer) },
+  instances     :[This.frames_Len]minirender.Host = @splat(.{ .usage = .create(.storage_buffer) }),
   instance_len  :u32 = 0,
+  screen        :[2]f32 = .{ 1, 1 },
   pool          :cvk.descriptor.Pool   = std.mem.zeroes(cvk.descriptor.Pool),
   layout        :cvk.descriptor.Layout = std.mem.zeroes(cvk.descriptor.Layout),
   set           :[This.frames_Len]cvk.descriptor.Set = std.mem.zeroes([This.frames_Len]cvk.descriptor.Set),
@@ -188,7 +186,7 @@ fn instances_binding (buffer :?*const cvk.vk.DescriptorBufferInfo) cvk.descripto
   return .create(.{
     .id     = This.instances_id,
     .kind   = .storage_buffer,
-    .stage  = .initOne(.vertex),
+    .stage  = .create(.vertex),
     .buffer = buffer,
   });
 }
@@ -197,7 +195,7 @@ fn atlas_binding (image :?*const cvk.vk.DescriptorImageInfo) cvk.descriptor.Bind
   return .create(.{
     .id    = This.atlas_id,
     .kind  = .combined_image_sampler,
-    .stage = .initOne(.fragment),
+    .stage = .create(.fragment),
     .image = image,
   });
 }
@@ -246,10 +244,10 @@ pub fn create (
     .allocator      = &gpu.instance.allocator,
     .max_sets       = This.frames_Len,
     .sizes          = &.{ .{
-      .type            = @intFromEnum(cvk.vk.DescriptorType.storage_buffer),
+      .type            = @backingInt(cvk.vk.DescriptorType.storage_buffer),
       .descriptorCount = This.frames_Len,
     }, .{
-      .type            = @intFromEnum(cvk.vk.DescriptorType.combined_image_sampler),
+      .type            = @backingInt(cvk.vk.DescriptorType.combined_image_sampler),
       .descriptorCount = This.frames_Len,
     } },
   });
@@ -269,7 +267,7 @@ pub fn create (
   state_vertexInput.pVertexAttributeDescriptions    = &This.attributes;
 
   var state_rasterization = cvk.pipeline.state.rasterization.defaults();
-  state_rasterization.cullMode = cvk.vk.CullMode.Flags.initEmpty().bits.mask;
+  state_rasterization.cullMode = cvk.vk.CullMode.Flags.none.bits;
 
   var state_depthStencil = cvk.pipeline.state.depthStencil.defaults();
   state_depthStencil.depthTestEnable  = cvk.C.VK_FALSE;
@@ -300,7 +298,7 @@ pub fn create (
       .allocator         = &gpu.instance.allocator,
       .sets              = &.{ result.layout.ct },
       .pushConstants     = &.{ .{
-        .stageFlags      = cvk.vk.ShaderStage.Flags.initOne(.vertex).bits.mask,
+        .stageFlags      = cvk.vk.ShaderStage.Flags.create(.vertex).bits,
         .offset          = 0,
         .size            = @sizeOf(This.Screen),
       } },
@@ -313,9 +311,17 @@ pub fn create (
 //_______________________________________
 // @section Scene
 //_____________________________
-pub fn add      (U :*Type, shape :mui.Shape)         !void { try U.scene.add(shape); }
-pub fn add_many (U :*Type, shapes :[]const mui.Shape) !void { try U.scene.add_many(shapes); }
-pub fn clear    (U :*Type) void { U.instance_len = 0; }
+pub fn add (U :*Type, shape :mui.Shape) !void {
+  var entry = shape;
+  U.scene.unit_to_surface(&entry, U.view.surface.size);
+  _ = try U.scene.shapes.add(entry);
+}
+pub fn add_many (U :*Type, shapes :[]const mui.Shape) !void { for (shapes) |shape| try U.add(shape); }
+pub fn clear (U :*Type) void {
+  U.instance_len = 0;
+  U.scene.shapes.destroy();
+  U.scene.shapes = .create_empty(U.scene.A);
+}
 
 
 //_______________________________________
@@ -326,15 +332,20 @@ pub fn sync (
     gpu : *minirender.Gpu,
     S   : *const minirender.Sync,
   ) void {
-  const shapes = U.scene.shapes.data();
-  U.instance_len = @intCast(shapes.len);
+  U.scene.layout(U.view.surface.size);
+  const shapes = U.scene.shapes.items();
+  U.instance_len = 0;
   if (shapes.len == 0) return;
-  const screen = [2]f32{ gpu.width(), gpu.height() };
+  U.screen = U.view.screen_size(gpu.width(), gpu.height());
+  const center = U.view.screen_center();
+  const origin = [2]f32{ center[0] - U.screen[0] * 0.5, center[1] - U.screen[1] * 0.5 };
   U.instances[S.frameID].fit(gpu, shapes.len * @sizeOf(This.Instance));
-  for (shapes, 0..) |*shape, id| {
+  for (shapes) |*shape| {
+    if (shape.hidden or shape.kind == .curve) continue;
     var entry :This.Instance= .{};
-    entry.upload(shape, screen);
-    U.instances[S.frameID].write(id * @sizeOf(This.Instance), std.mem.asBytes(&entry));
+    entry.upload(shape, origin);
+    U.instances[S.frameID].write(U.instance_len * @sizeOf(This.Instance), std.mem.asBytes(&entry));
+    U.instance_len += 1;
   }
 }
 //__________________
@@ -358,16 +369,16 @@ pub fn draw (
   const image_info :cvk.vk.DescriptorImageInfo= .{
     .sampler     = A.sampler.ct,
     .imageView   = A.view.ct,
-    .imageLayout = @intFromEnum(cvk.vk.ImageLayout.shader_read_only_optimal),
+    .imageLayout = @backingInt(cvk.vk.ImageLayout.shader_read_only_optimal),
   };
   const atlas = This.atlas_binding(&image_info);
   U.set[frameID].update(.{ .device_logical = &gpu.device.logical, .binding = &atlas });
 
-  const push :This.Screen= .{ .size = .{ gpu.width(), gpu.height() } };
+  const push :This.Screen= .{ .size = U.screen };
   S.buffer[frameID].graphics_bind(&U.graphics);
   S.buffer[frameID].constants_push(.{
     .pipeline_layout = &U.graphics.layout,
-    .stage           = .initOne(.vertex),
+    .stage           = .create(.vertex),
     .size            = @sizeOf(This.Screen),
     .data            = @constCast(@ptrCast(&push)),
   });

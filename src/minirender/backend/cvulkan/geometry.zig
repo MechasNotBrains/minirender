@@ -30,16 +30,16 @@ const sync = minirender.sync;
 pub const binding :cvk.vk.VertexInputBindingDescription = .{
   .binding   = 0,
   .stride    = @sizeOf(minirender.Vertex),
-  .inputRate = @intFromEnum(cvk.vk.VertexInputRate.vertex),
+  .inputRate = @backingInt(cvk.vk.VertexInputRate.vertex),
 };
 //__________________
 pub const attributes = [_]cvk.vk.VertexInputAttributeDescription{
-  .{ .location = 0, .binding = 0, .format = @intFromEnum(cvk.vk.Format.r32g32b32_sfloat),    .offset = @offsetOf(minirender.Vertex, "position")     },
-  .{ .location = 1, .binding = 0, .format = @intFromEnum(cvk.vk.Format.r32g32b32_sfloat),    .offset = @offsetOf(minirender.Vertex, "normal")       },
-  .{ .location = 2, .binding = 0, .format = @intFromEnum(cvk.vk.Format.r32g32_sfloat),       .offset = @offsetOf(minirender.Vertex, "uv")           },
-  .{ .location = 3, .binding = 0, .format = @intFromEnum(cvk.vk.Format.r32g32_sfloat),       .offset = @offsetOf(minirender.Vertex, "atlas_offset") },
-  .{ .location = 4, .binding = 0, .format = @intFromEnum(cvk.vk.Format.r32g32_sfloat),       .offset = @offsetOf(minirender.Vertex, "atlas_scale")  },
-  .{ .location = 5, .binding = 0, .format = @intFromEnum(cvk.vk.Format.r32g32b32a32_sfloat), .offset = @offsetOf(minirender.Vertex, "color")        },
+  .{ .location = 0, .binding = 0, .format = @backingInt(cvk.vk.Format.r32g32b32_sfloat),    .offset = @offsetOf(minirender.Vertex, "position")     },
+  .{ .location = 1, .binding = 0, .format = @backingInt(cvk.vk.Format.r32g32b32_sfloat),    .offset = @offsetOf(minirender.Vertex, "normal")       },
+  .{ .location = 2, .binding = 0, .format = @backingInt(cvk.vk.Format.r32g32_sfloat),       .offset = @offsetOf(minirender.Vertex, "uv")           },
+  .{ .location = 3, .binding = 0, .format = @backingInt(cvk.vk.Format.r32g32_sfloat),       .offset = @offsetOf(minirender.Vertex, "atlas_offset") },
+  .{ .location = 4, .binding = 0, .format = @backingInt(cvk.vk.Format.r32g32_sfloat),       .offset = @offsetOf(minirender.Vertex, "atlas_scale")  },
+  .{ .location = 5, .binding = 0, .format = @backingInt(cvk.vk.Format.r32g32b32a32_sfloat), .offset = @offsetOf(minirender.Vertex, "color")        },
 };
 
 
@@ -72,7 +72,7 @@ const vertex = struct {
     return .create(.{
       .device_logical = &gpu.device.logical,
       .allocator      = &gpu.instance.allocator,
-      .stage          = .initOne(.vertex),
+      .stage          = .create(.vertex),
       .code           = code,
     });
   }
@@ -85,7 +85,7 @@ const fragment = struct {
     return .create(.{
       .device_logical = &gpu.device.logical,
       .allocator      = &gpu.instance.allocator,
-      .stage          = .initOne(.fragment),
+      .stage          = .create(.fragment),
       .code           = code,
     });
   }
@@ -102,14 +102,14 @@ pub const Patch = struct {
 //__________________
 pub const Type = struct {
   shader          :This.Shader = .{},
-  vertex_buffer   :minirender.Buffer = .{ .usage = .initOne(.vertex_buffer) },
-  index_buffer    :minirender.Buffer = .{ .usage = .initOne(.index_buffer) },
-  instance_buffer :[sync.frames_Len]minirender.Host = @splat(.{ .usage = .initOne(.transfer_src) }),
-  instance_local  :[sync.frames_Len]minirender.Local = @splat(.{ .usage = .initOne(.storage_buffer) }),
+  vertex_buffer   :minirender.Buffer = .{ .usage = .create(.vertex_buffer) },
+  index_buffer    :minirender.Buffer = .{ .usage = .create(.index_buffer) },
+  instance_buffer :[sync.frames_Len]minirender.Host = @splat(.{ .usage = .create(.transfer_src) }),
+  instance_local  :[sync.frames_Len]minirender.Local = @splat(.{ .usage = .create(.storage_buffer) }),
   instance_dirty  :[sync.frames_Len]bool = @splat(false),
   patches         :mstd.seq(This.Patch),
   patched         :[sync.frames_Len]usize = @splat(0),
-  indirect_buffer :[sync.frames_Len]minirender.Buffer = @splat(.{ .usage = .initMany(&.{ .indirect_buffer, .storage_buffer }) }),
+  indirect_buffer :[sync.frames_Len]minirender.Buffer = @splat(.{ .usage = .create(&.{ .indirect_buffer, .storage_buffer }) }),
   indirect_len    :u32 = 0,
   opaque_len      :u32 = 0,
   instance_len    :u32 = 0,
@@ -191,10 +191,10 @@ pub const Type = struct {
     G.instance_local[S.frameID].fit(gpu, G.instance_buffer[S.frameID].size);
     S.buffer[S.frameID].buffer_copy(&G.instance_buffer[S.frameID].data, &G.instance_local[S.frameID].data);
     S.buffer[S.frameID].buffer_sync(&G.instance_local[S.frameID].data, .{
-      .access_src = .initOne(.transfer_write),
-      .access_trg = .initOne(.shader_read),
-      .stage_src  = .initOne(.transfer),
-      .stage_trg  = .initOne(.compute_shader),
+      .access_src = .create(.transfer_write),
+      .access_trg = .create(.shader_read),
+      .stage_src  = .create(.transfer),
+      .stage_trg  = .create(.compute_shader),
     });
   }
   //__________________

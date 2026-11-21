@@ -42,7 +42,7 @@ fn instances_binding (buffer :?*const cvk.vk.DescriptorBufferInfo) cvk.descripto
   return .create(.{
     .id     = This.instances_id,
     .kind   = .storage_buffer,
-    .stage  = .initOne(.vertex),
+    .stage  = .create(.vertex),
     .buffer = buffer,
   });
 }
@@ -51,7 +51,7 @@ fn atlas_binding (image :?*const cvk.vk.DescriptorImageInfo) cvk.descriptor.Bind
   return .create(.{
     .id    = This.atlas_id,
     .kind  = .combined_image_sampler,
-    .stage = .initOne(.fragment),
+    .stage = .create(.fragment),
     .image = image,
   });
 }
@@ -80,10 +80,10 @@ pub fn create (gpu :*minirender.Gpu) Type {
     .allocator      = &gpu.instance.allocator,
     .max_sets       = sync.frames_Len,
     .sizes          = &.{ .{
-      .type            = @intFromEnum(cvk.vk.DescriptorType.storage_buffer),
+      .type            = @backingInt(cvk.vk.DescriptorType.storage_buffer),
       .descriptorCount = sync.frames_Len,
     }, .{
-      .type            = @intFromEnum(cvk.vk.DescriptorType.combined_image_sampler),
+      .type            = @backingInt(cvk.vk.DescriptorType.combined_image_sampler),
       .descriptorCount = sync.frames_Len,
     } },
   });
@@ -126,7 +126,7 @@ pub fn atlas_bind (
   const info :cvk.vk.DescriptorImageInfo= .{
     .sampler     = A.sampler.ct,
     .imageView   = A.view.ct,
-    .imageLayout = @intFromEnum(cvk.vk.ImageLayout.shader_read_only_optimal),
+    .imageLayout = @backingInt(cvk.vk.ImageLayout.shader_read_only_optimal),
   };
   const binding = This.atlas_binding(&info);
   D.set[frameID].update(.{

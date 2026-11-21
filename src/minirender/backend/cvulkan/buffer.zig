@@ -34,7 +34,7 @@ pub const Host = struct {
   data   :cvk.Buffer = .{},
   memory :cvk.Memory = .{},
   size   :usize                   = 0,
-  usage  :cvk.vk.BufferUsage.Flags = .initEmpty(),
+  usage  :cvk.vk.BufferUsage.Flags = .none,
 
 
   //_______________________________________
@@ -60,7 +60,7 @@ pub const Host = struct {
       .allocator       = &gpu.instance.allocator,
       .size            = bytes,
       .usage           = usage,
-      .memory_flags    = .initMany(&.{ .host_visible, .host_coherent }),
+      .memory_flags    = .create(&.{ .host_visible, .host_coherent }),
     });
     B.memory = .create(.{
       .device_logical  = &gpu.device.logical,
@@ -95,7 +95,7 @@ pub const Local = struct {
   data   :cvk.Buffer = .{},
   memory :cvk.Memory = .{},
   size   :usize                    = 0,
-  usage  :cvk.vk.BufferUsage.Flags = .initEmpty(),
+  usage  :cvk.vk.BufferUsage.Flags = .none,
 
   pub fn destroy (B :*const @This(), gpu :*minirender.Gpu) void {
     var mutable :*@This()= @constCast(B); _= &mutable;
@@ -117,8 +117,8 @@ pub const Local = struct {
       .device_logical  = &gpu.device.logical,
       .allocator       = &gpu.instance.allocator,
       .size            = bytes,
-      .usage           = usage.unionWith(.initOne(.transfer_dst)),
-      .memory_flags    = .initOne(.device_local),
+      .usage           = usage.merge(.create(.transfer_dst)),
+      .memory_flags    = .create(.device_local),
     });
     B.memory = .create(.{
       .device_logical  = &gpu.device.logical,
@@ -142,7 +142,7 @@ pub const Type = struct {
   ram   :This.Standard = .{},
   vram  :This.Standard = .{},
   size  :usize                  = 0,
-  usage :cvk.vk.BufferUsage.Flags = .initEmpty(),
+  usage :cvk.vk.BufferUsage.Flags = .none,
 
 
   //_______________________________________
@@ -168,16 +168,16 @@ pub const Type = struct {
       .device_logical  = &gpu.device.logical,
       .allocator       = &gpu.instance.allocator,
       .size            = size,
-      .usage           = .initOne(.transfer_src),
-      .memory_flags    = .initMany(&.{ .host_visible, .host_coherent }),
+      .usage           = .create(.transfer_src),
+      .memory_flags    = .create(&.{ .host_visible, .host_coherent }),
     });
     result.vram.data   = .create(.{
       .device_physical = &gpu.device.physical,
       .device_logical  = &gpu.device.logical,
       .allocator       = &gpu.instance.allocator,
       .size            = size,
-      .usage           = usage.unionWith(.initOne(.transfer_dst)),
-      .memory_flags    = .initOne(.device_local),
+      .usage           = usage.merge(.create(.transfer_dst)),
+      .memory_flags    = .create(.device_local),
     });
     result.ram.memory  = .create(.{
       .device_logical  = &gpu.device.logical,
@@ -223,10 +223,10 @@ pub const Type = struct {
   pub fn sync_record (B :*const @This(), S :*const minirender.Sync) void {
     S.buffer[S.frameID].buffer_copy(&B.ram.data, &B.vram.data);
     S.buffer[S.frameID].buffer_sync(&B.vram.data, .{
-      .access_src = .initOne(.transfer_write),
-      .access_trg = .initMany(&.{ .vertex_attribute_read, .index_read, .indirect_command_read, .shader_read }),
-      .stage_src  = .initOne(.transfer),
-      .stage_trg  = .initMany(&.{ .vertex_input, .draw_indirect, .compute_shader, .vertex_shader }),
+      .access_src = .create(.transfer_write),
+      .access_trg = .create(&.{ .vertex_attribute_read, .index_read, .indirect_command_read, .shader_read }),
+      .stage_src  = .create(.transfer),
+      .stage_trg  = .create(&.{ .vertex_input, .draw_indirect, .compute_shader, .vertex_shader }),
     });
   }
   //__________________

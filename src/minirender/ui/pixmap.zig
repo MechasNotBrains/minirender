@@ -8,12 +8,12 @@ pub fn Pixmap (comptime width :comptime_int, comptime height :comptime_int) type
   return struct {
     pub const W :usize = width;
     pub const H :usize = height;
-    const Data = std.bit_set.IntegerBitSet(W * H);
+    const Data = std.bit_set.Integer(W * H);
     data :Data,
 
     pub fn parse (comptime pattern :*const [W * H]u8) @This() {
       @setEvalBranchQuota(20000);
-      var result :@This() = .{ .data = Data.initEmpty() };
+      var result :@This() = .{ .data = Data.empty };
       for (0..W * H) |index| {
         if (pattern[index] != ' ') result.data.set(index);
       }

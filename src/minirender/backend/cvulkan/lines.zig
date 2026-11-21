@@ -31,11 +31,11 @@ pub const width = 2.0;
 pub const binding :cvk.vk.VertexInputBindingDescription = .{
   .binding   = 0,
   .stride    = @sizeOf([3]f32),
-  .inputRate = @intFromEnum(cvk.vk.VertexInputRate.vertex),
+  .inputRate = @backingInt(cvk.vk.VertexInputRate.vertex),
 };
 //__________________
 pub const attributes = [_]cvk.vk.VertexInputAttributeDescription{
-  .{ .location = 0, .binding = 0, .format = @intFromEnum(cvk.vk.Format.r32g32b32_sfloat), .offset = 0 },
+  .{ .location = 0, .binding = 0, .format = @backingInt(cvk.vk.Format.r32g32b32_sfloat), .offset = 0 },
 };
 
 
@@ -82,7 +82,7 @@ const vertex = struct {
     return .create(.{
       .device_logical = &gpu.device.logical,
       .allocator      = &gpu.instance.allocator,
-      .stage          = .initOne(.vertex),
+      .stage          = .create(.vertex),
       .code           = code,
     });
   }
@@ -95,7 +95,7 @@ const fragment = struct {
     return .create(.{
       .device_logical = &gpu.device.logical,
       .allocator      = &gpu.instance.allocator,
-      .stage          = .initOne(.fragment),
+      .stage          = .create(.fragment),
       .code           = code,
     });
   }
@@ -109,7 +109,7 @@ pub const Type = struct {
   shader        :This.Shader = .{},
   graphics      :cvk.pipeline.Graphics = .{},
   stages        :[2]cvk.pipeline.ShaderStage = std.mem.zeroes([2]cvk.pipeline.ShaderStage),
-  vertex_buffer :[This.frames_Len]minirender.Host = @splat(.{ .usage = .initOne(.vertex_buffer) }),
+  vertex_buffer :[This.frames_Len]minirender.Host = @splat(.{ .usage = .create(.vertex_buffer) }),
   vertex_fresh  :[This.frames_Len]bool = @splat(false),
   vertex_data   :mstd.seq([3]f32) = undefined,
   vertex_len    :u32 = 0,
@@ -148,10 +148,10 @@ pub fn create (gpu :*minirender.Gpu, trg :*const minirender.Target, A :std.mem.A
   state_vertexInput.pVertexAttributeDescriptions    = &This.attributes;
 
   var state_inputAssembly = cvk.pipeline.state.inputAssembly.defaults();
-  state_inputAssembly.topology = @intFromEnum(cvk.vk.PrimitiveTopology.line_list);
+  state_inputAssembly.topology = @backingInt(cvk.vk.PrimitiveTopology.line_list);
 
   var state_rasterization = cvk.pipeline.state.rasterization.defaults();
-  state_rasterization.cullMode  = cvk.vk.CullMode.Flags.initEmpty().bits.mask;
+  state_rasterization.cullMode  = cvk.vk.CullMode.Flags.none.bits;
   state_rasterization.lineWidth = This.width;
 
   var state_depthStencil = cvk.pipeline.state.depthStencil.defaults();
@@ -181,7 +181,7 @@ pub fn create (gpu :*minirender.Gpu, trg :*const minirender.Target, A :std.mem.A
       .device_logical    = &gpu.device.logical,
       .allocator         = &gpu.instance.allocator,
       .pushConstants     = &.{ .{
-        .stageFlags      = cvk.vk.ShaderStage.Flags.initMany(&.{ .vertex, .fragment }).bits.mask,
+        .stageFlags      = cvk.vk.ShaderStage.Flags.create(&.{ .vertex, .fragment }).bits,
         .offset          = 0,
         .size            = @sizeOf(This.Push),
       } },
@@ -232,7 +232,7 @@ pub fn draw (
   S.buffer[frameID].graphics_bind(&L.graphics);
   S.buffer[frameID].constants_push(.{
     .pipeline_layout = &L.graphics.layout,
-    .stage           = .initMany(&.{ .vertex, .fragment }),
+    .stage           = .create(&.{ .vertex, .fragment }),
     .size            = @sizeOf(This.Push),
     .data            = @constCast(@ptrCast(&push)),
   });

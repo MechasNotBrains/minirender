@@ -79,9 +79,9 @@ pub const Type = struct {
   pool       :cvk.descriptor.Pool    = std.mem.zeroes(cvk.descriptor.Pool),
   layout     :cvk.descriptor.Layout  = std.mem.zeroes(cvk.descriptor.Layout),
   set        :[sync.frames_Len]cvk.descriptor.Set = std.mem.zeroes([sync.frames_Len]cvk.descriptor.Set),
-  instances  :[sync.frames_Len]minirender.Buffer = @splat(.{ .usage = .initMany(&.{ .storage_buffer, .transfer_src }) }),
-  commands   :[sync.frames_Len]minirender.Buffer = @splat(.{ .usage = .initMany(&.{ .indirect_buffer, .storage_buffer, .transfer_src }) }),
-  counters   :[sync.frames_Len]minirender.Buffer = @splat(.{ .usage = .initMany(&.{ .indirect_buffer, .storage_buffer, .transfer_src }) }),
+  instances  :[sync.frames_Len]minirender.Buffer = @splat(.{ .usage = .create(&.{ .storage_buffer, .transfer_src }) }),
+  commands   :[sync.frames_Len]minirender.Buffer = @splat(.{ .usage = .create(&.{ .indirect_buffer, .storage_buffer, .transfer_src }) }),
+  counters   :[sync.frames_Len]minirender.Buffer = @splat(.{ .usage = .create(&.{ .indirect_buffer, .storage_buffer, .transfer_src }) }),
 
   pub const Push    = This.Push;
   pub const planes  = This.planes;
@@ -109,7 +109,7 @@ fn binding (id :u32, buffer :?*const cvk.vk.DescriptorBufferInfo) cvk.descriptor
   return .create(.{
     .id     = id,
     .kind   = .storage_buffer,
-    .stage  = .initOne(.compute),
+    .stage  = .create(.compute),
     .buffer = buffer,
   });
 }
@@ -143,7 +143,7 @@ pub fn create (gpu :*minirender.Gpu) Type {
   result.shader = .create(.{
     .device_logical = &gpu.device.logical,
     .allocator      = &gpu.instance.allocator,
-    .stage          = .initOne(.compute),
+    .stage          = .create(.compute),
     .code           = This.module.code,
   });
 
@@ -159,7 +159,7 @@ pub fn create (gpu :*minirender.Gpu) Type {
     .allocator      = &gpu.instance.allocator,
     .max_sets       = sync.frames_Len,
     .sizes          = &.{ .{
-      .type            = @intFromEnum(cvk.vk.DescriptorType.storage_buffer),
+      .type            = @backingInt(cvk.vk.DescriptorType.storage_buffer),
       .descriptorCount = sync.frames_Len * This.bindings_len,
     } },
   });
@@ -175,7 +175,7 @@ pub fn create (gpu :*minirender.Gpu) Type {
     .shader          = &result.shader,
     .sets            = &.{ result.layout.ct },
     .pushConstants   = &.{ .{
-      .stageFlags    = cvk.vk.ShaderStage.Flags.initOne(.compute).bits.mask,
+      .stageFlags    = cvk.vk.ShaderStage.Flags.create(.compute).bits,
       .offset        = 0,
       .size          = @sizeOf(This.Push),
     } },
@@ -221,8 +221,8 @@ pub fn counters_read (
     .device_logical  = &gpu.device.logical,
     .allocator       = &gpu.instance.allocator,
     .size            = @sizeOf(This.Counters),
-    .usage           = .initOne(.transfer_dst),
-    .memory          = .initMany(&.{ .host_visible, .host_coherent }),
+    .usage           = .create(.transfer_dst),
+    .memory_flags    = .create(&.{ .host_visible, .host_coherent }),
   });
   defer readback.destroy(&gpu.device.logical, &gpu.instance.allocator);
   var memory :cvk.Memory= .create(.{
@@ -267,8 +267,8 @@ pub fn buffer_read (
     .device_logical  = &gpu.device.logical,
     .allocator       = &gpu.instance.allocator,
     .size            = src.size,
-    .usage           = .initOne(.transfer_dst),
-    .memory          = .initMany(&.{ .host_visible, .host_coherent }),
+    .usage           = .create(.transfer_dst),
+    .memory_flags    = .create(&.{ .host_visible, .host_coherent }),
   });
   defer readback.destroy(&gpu.device.logical, &gpu.instance.allocator);
   var memory :cvk.Memory= .create(.{
@@ -317,16 +317,16 @@ pub fn record (
 
   S.buffer[frameID].buffer_fill(&C.counters[frameID].vram.data, 0);
   S.buffer[frameID].buffer_sync(&C.counters[frameID].vram.data, .{
-    .access_src = .initOne(.transfer_write),
-    .access_trg = .initMany(&.{ .shader_read, .shader_write }),
-    .stage_src  = .initOne(.transfer),
-    .stage_trg  = .initOne(.compute_shader),
+    .access_src = .create(.transfer_write),
+    .access_trg = .create(&.{ .shader_read, .shader_write }),
+    .stage_src  = .create(.transfer),
+    .stage_trg  = .create(.compute_shader),
   });
 
   S.buffer[frameID].compute_bind(&C.compute);
   S.buffer[frameID].constants_push(.{
     .pipeline_layout = &C.compute.layout,
-    .stage           = .initOne(.compute),
+    .stage           = .create(.compute),
     .size            = @sizeOf(This.Push),
     .data            = @constCast(@ptrCast(push)),
   });
@@ -338,21 +338,21 @@ pub fn record (
   S.buffer[frameID].compute_dispatch(push.commands_len, 1, 1);
 
   S.buffer[frameID].buffer_sync(&C.commands[frameID].vram.data, .{
-    .access_src = .initOne(.shader_write),
-    .access_trg = .initOne(.indirect_command_read),
-    .stage_src  = .initOne(.compute_shader),
-    .stage_trg  = .initOne(.draw_indirect),
+    .access_src = .create(.shader_write),
+    .access_trg = .create(.indirect_command_read),
+    .stage_src  = .create(.compute_shader),
+    .stage_trg  = .create(.draw_indirect),
   });
   S.buffer[frameID].buffer_sync(&C.counters[frameID].vram.data, .{
-    .access_src = .initOne(.shader_write),
-    .access_trg = .initOne(.indirect_command_read),
-    .stage_src  = .initOne(.compute_shader),
-    .stage_trg  = .initOne(.draw_indirect),
+    .access_src = .create(.shader_write),
+    .access_trg = .create(.indirect_command_read),
+    .stage_src  = .create(.compute_shader),
+    .stage_trg  = .create(.draw_indirect),
   });
   S.buffer[frameID].buffer_sync(&C.instances[frameID].vram.data, .{
-    .access_src = .initOne(.shader_write),
-    .access_trg = .initOne(.shader_read),
-    .stage_src  = .initOne(.compute_shader),
-    .stage_trg  = .initOne(.vertex_shader),
+    .access_src = .create(.shader_write),
+    .access_trg = .create(.shader_read),
+    .stage_src  = .create(.compute_shader),
+    .stage_trg  = .create(.vertex_shader),
   });
 }

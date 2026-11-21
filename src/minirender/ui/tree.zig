@@ -99,6 +99,7 @@ pub const Type = struct {
   pub fn draw (
       tree         :*Type,
       scene        :*mui.Scene,
+      surface      :mui.Vec2,
       rows         :[]const Row,
       visible      :[]const usize,
       anchor_x     :f32,
@@ -177,10 +178,9 @@ pub const Type = struct {
     const max_scroll = @max(content_height - scroll_span, 0);
     tree.scroll_offset = @max(0, @min(tree.scroll_offset, max_scroll));
 
-    scene.add(.{
-      .transform = .create(panel_x, panel_y, panel_width, panel_height),
-      .color     = theme.background,
-      .kind      = .square,
+    shape_add(scene, surface, panel_x, panel_y, panel_width, panel_height, .{
+      .color = theme.background,
+      .kind  = .rectangle,
     }) catch return .{};
 
     var result = Result{
@@ -189,6 +189,7 @@ pub const Type = struct {
     };
 
     const context = RowContext{
+      .surface           = surface,
       .panel_x           = panel_x,
       .panel_width       = panel_width,
       .dot_width         = dot_width,
@@ -216,6 +217,7 @@ pub const Type = struct {
   }
 
   const RowContext = struct {
+    surface           :mui.Vec2,
     panel_x           :f32,
     panel_width       :f32,
     dot_width         :f32,
@@ -239,16 +241,14 @@ pub const Type = struct {
       result     :*Result,
     ) void {
     if (background) |color| {
-      scene.add(.{
-        .transform = .create(context.panel_x, row_y, context.panel_width, theme.row_height),
-        .color     = color,
-        .kind      = .square,
+      shape_add(scene, context.surface, context.panel_x, row_y, context.panel_width, theme.row_height, .{
+        .color = color,
+        .kind  = .rectangle,
       }) catch return;
     } else if (row.selected) {
-      scene.add(.{
-        .transform = .create(context.panel_x, row_y, context.panel_width, theme.row_height),
-        .color     = theme.background_selected,
-        .kind      = .square,
+      shape_add(scene, context.surface, context.panel_x, row_y, context.panel_width, theme.row_height, .{
+        .color = theme.background_selected,
+        .kind  = .rectangle,
       }) catch return;
     }
 
@@ -266,7 +266,7 @@ pub const Type = struct {
       } else if (row_hit and input.click) {
         result.clicked_row = row_index;
       }
-      draw_label(scene, marker, text_x, text_y, context.dot_width, context.dot_height, context.char_advance, theme.fold);
+      draw_label(scene, context.surface, marker, text_x, text_y, context.dot_width, context.dot_height, context.char_advance, theme.fold);
     } else {
       if (row_hit and input.click) {
         result.clicked_row = row_index;
@@ -274,12 +274,29 @@ pub const Type = struct {
     }
     text_x += context.fold_marker_width;
 
-    draw_label(scene, row.label, text_x, text_y, context.dot_width, context.dot_height, context.char_advance, theme.foreground);
+    draw_label(scene, context.surface, row.label, text_x, text_y, context.dot_width, context.dot_height, context.char_advance, theme.foreground);
   }
 };
 
+pub fn shape_add (
+    scene   :*mui.Scene,
+    surface :mui.Vec2,
+    left    :f32,
+    top     :f32,
+    width   :f32,
+    height  :f32,
+    base    :mui.Shape,
+  ) !void {
+  const unit_x = surface.x() / 100.0;
+  const unit_y = surface.y() / 100.0;
+  var entry = base;
+  entry.transform = .create((left + width * 0.5) * unit_x, (top + height * 0.5) * unit_y, width * unit_x, height * unit_y);
+  _ = try scene.shapes.add(entry);
+}
+
 fn draw_label (
     scene        :*mui.Scene,
+    surface      :mui.Vec2,
     text         :mstd.cstring,
     start_x      :f32,
     start_y      :f32,
@@ -291,11 +308,10 @@ fn draw_label (
   var cursor_x = start_x;
   for (text) |character| {
     const region = font5x7.region(character);
-    if (region[2] > 0.0) scene.add(.{
-      .transform = .create(cursor_x, start_y, dot_width * font5x7.W, dot_height * font5x7.H),
-      .uv        = .create(region[0], region[1], region[2], region[3]),
-      .color     = color,
-      .kind      = .square,
+    if (region[2] > 0.0) shape_add(scene, surface, cursor_x, start_y, dot_width * font5x7.W, dot_height * font5x7.H, .{
+      .uv    = .create(region[0], region[1], region[2], region[3]),
+      .color = color,
+      .kind  = .sampled,
     }) catch return;
     cursor_x += char_advance;
   }

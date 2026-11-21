@@ -50,7 +50,7 @@ pub fn clear (
   const color_clear :cvk.vk.ClearValue= .{ .color = .{ .float32 = color } };
   const depth_clear :cvk.vk.ClearValue= .{ .depthStencil = .{ .depth = 0.0, .stencil = 0 } };
   return Type.create(.{
-    .color_format        = @enumFromInt(gpu.device.swapchain.cfg.imageFormat),
+    .color_format        = @fromBackingInt(gpu.device.swapchain.cfg.imageFormat),
     .extent              = gpu.device.swapchain.cfg.imageExtent,
     .color_load          = .clear,
     .color_clear         = &color_clear,
@@ -62,7 +62,7 @@ pub fn clear (
 //__________________
 pub fn draw (gpu :*const minirender.Gpu) Type {
   return Type.create(.{
-    .color_format  = @enumFromInt(gpu.device.swapchain.cfg.imageFormat),
+    .color_format  = @fromBackingInt(gpu.device.swapchain.cfg.imageFormat),
     .extent        = gpu.device.swapchain.cfg.imageExtent,
     .depth_enabled = true,
   });
@@ -86,9 +86,9 @@ pub fn begin (
   if (first) S.buffer[S.frameID].image_handle_transition(gpu.device.swapchain.images.ptr[imageID].ct, .{
     .layout_old = .undefined,
     .layout_new = .color_attachment_optimal,
-    .access_trg = .initOne(.color_attachment_write),
-    .stage_src  = .initOne(.top_of_pipe),
-    .stage_trg  = .initOne(.color_attachment_output),
+    .access_trg = .create(.color_attachment_write),
+    .stage_src  = .create(.top_of_pipe),
+    .stage_trg  = .create(.color_attachment_output),
   });
   R.view_bind(gpu.device.swapchain.images.ptr[imageID].view);
   S.buffer[S.frameID].rendering_begin(.{ .rendering = &R.ct });
@@ -105,8 +105,8 @@ pub fn end (
   if (last) S.buffer[S.frameID].image_handle_transition(gpu.device.swapchain.images.ptr[imageID].ct, .{
     .layout_old = .color_attachment_optimal,
     .layout_new = .present_src,
-    .access_src = .initOne(.color_attachment_write),
-    .stage_src  = .initOne(.color_attachment_output),
-    .stage_trg  = .initOne(.bottom_of_pipe),
+    .access_src = .create(.color_attachment_write),
+    .stage_src  = .create(.color_attachment_output),
+    .stage_trg  = .create(.bottom_of_pipe),
   });
 }

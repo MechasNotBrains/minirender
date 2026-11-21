@@ -55,7 +55,7 @@ pub const Type = struct {
     result.pool = .create(.{
       .device_logical = &gpu.device.logical,
       .queueID        = gpu.device.physical.queueFamilies.graphics,
-      .flags          = .initOne(.reset_command_buffer),
+      .flags          = .create(.reset_command_buffer),
       .allocator      = &gpu.instance.allocator,
     });
     for (0..This.frames_Len) |id| {
@@ -103,7 +103,7 @@ pub const Type = struct {
       .device_logical = &gpu.device.logical,
       .command_pool   = &S.pool,
     });
-    result.begin2(.{ .flags = .initOne(.one_time_submit) });
+    result.begin2(.{ .flags = .create(.one_time_submit) });
     return result;
   }
   //__________________

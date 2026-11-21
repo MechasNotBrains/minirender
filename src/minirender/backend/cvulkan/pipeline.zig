@@ -70,7 +70,7 @@ pub fn create (
   state_vertexInput.pVertexAttributeDescriptions    = &minirender.geometry.attributes;
 
   var state_rasterization = cvk.pipeline.state.rasterization.defaults();
-  state_rasterization.cullMode = cvk.vk.CullMode.Flags.initEmpty().bits.mask;
+  state_rasterization.cullMode = cvk.vk.CullMode.Flags.none.bits;
 
   const state_dynamic               = cvk.pipeline.state.Dynamic.setup(&.{ .viewport, .scissor });
   const state_inputAssembly         = cvk.pipeline.state.inputAssembly.defaults();
@@ -98,7 +98,7 @@ pub fn create (
       .allocator         = &gpu.instance.allocator,
       .sets              = &.{ sets.layout.ct },
       .pushConstants     = &.{ .{
-        .stageFlags      = cvk.vk.ShaderStage.Flags.initMany(&.{ .vertex, .fragment }).bits.mask,
+        .stageFlags      = cvk.vk.ShaderStage.Flags.create(&.{ .vertex, .fragment }).bits,
         .offset          = 0,
         .size            = @sizeOf(This.Push),
       } },

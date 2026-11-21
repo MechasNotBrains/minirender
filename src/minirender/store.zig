@@ -171,7 +171,7 @@ pub const Type = struct {
       world : minirender.Mat4,
       color : minirender.Color,
     ) ?u32 {
-    const inst = S.instances.get(id) orelse return null;
+    const inst = S.instances.mget(id) orelse return null;
     const moved = !inst.shape.eq(shape);
     inst.shape = shape;
     inst.world = world;
@@ -198,7 +198,7 @@ pub const Type = struct {
       world : minirender.Mat4,
       color : minirender.Color,
     ) ?u32 {
-    const inst = S.instances.get(id) orelse return null;
+    const inst = S.instances.mget(id) orelse return null;
     inst.world = world;
     inst.color = color;
     return inst.gpu_offset orelse {

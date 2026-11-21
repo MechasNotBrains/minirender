@@ -102,8 +102,8 @@ pub fn create (
     .device_logical  = &gpu.device.logical,
     .allocator       = &gpu.instance.allocator,
     .format          = This.format,
-    .usage           = .initMany(&.{ .transfer_dst, .sampled }),
-    .memory_flags    = .initOne(.device_local),
+    .usage           = .create(&.{ .transfer_dst, .sampled }),
+    .memory_flags    = .create(.device_local),
     .dimensions      = .dim2d,
     .width           = result.width(),
     .height          = result.height(),
@@ -122,7 +122,7 @@ pub fn create (
     .image_data      = &result.data,
     .device_logical  = &gpu.device.logical,
     .allocator       = &gpu.instance.allocator,
-    .aspect          = .initOne(.color),
+    .aspect          = .create(.color),
   });
   result.sampler = .create(.{
     .device_physical = &gpu.device.physical,
@@ -139,24 +139,24 @@ pub fn create (
   buffer.image_data_transition(&result.data, .{
     .layout_old = .undefined,
     .layout_new = .transfer_dst_optimal,
-    .access_trg = .initOne(.transfer_write),
-    .stage_src  = .initOne(.top_of_pipe),
-    .stage_trg  = .initOne(.transfer),
-    .aspect     = .initOne(.color),
+    .access_trg = .create(.transfer_write),
+    .stage_src  = .create(.top_of_pipe),
+    .stage_trg  = .create(.transfer),
+    .aspect     = .create(.color),
   });
   buffer.image_data_clear(&result.data, .{
     .layout     = .transfer_dst_optimal,
     .color      = .{ .float32 = .{ 0, 0, 0, 0 } },
-    .aspect     = .initOne(.color),
+    .aspect     = .create(.color),
   });
   buffer.image_data_transition(&result.data, .{
     .layout_old = .transfer_dst_optimal,
     .layout_new = .shader_read_only_optimal,
-    .access_src = .initOne(.transfer_write),
-    .access_trg = .initOne(.shader_read),
-    .stage_src  = .initOne(.transfer),
-    .stage_trg  = .initOne(.fragment_shader),
-    .aspect     = .initOne(.color),
+    .access_src = .create(.transfer_write),
+    .access_trg = .create(.shader_read),
+    .stage_src  = .create(.transfer),
+    .stage_trg  = .create(.fragment_shader),
+    .aspect     = .create(.color),
   });
   S.buffer_end_onetime(&buffer, gpu);
   return result;
@@ -183,8 +183,8 @@ pub fn load (
     .device_logical  = &gpu.device.logical,
     .allocator       = &gpu.instance.allocator,
     .size            = pixels.len,
-    .usage           = .initOne(.transfer_src),
-    .memory_flags    = .initMany(&.{ .host_visible, .host_coherent }),
+    .usage           = .create(.transfer_src),
+    .memory_flags    = .create(&.{ .host_visible, .host_coherent }),
   });
   defer staging.destroy(&gpu.device.logical, &gpu.instance.allocator);
   var memory :cvk.Memory= .create(.{
@@ -205,11 +205,11 @@ pub fn load (
   buffer.image_data_transition(&A.data, .{
     .layout_old  = .shader_read_only_optimal,
     .layout_new  = .transfer_dst_optimal,
-    .access_src  = .initOne(.shader_read),
-    .access_trg  = .initOne(.transfer_write),
-    .stage_src   = .initOne(.fragment_shader),
-    .stage_trg   = .initOne(.transfer),
-    .aspect      = .initOne(.color),
+    .access_src  = .create(.shader_read),
+    .access_trg  = .create(.transfer_write),
+    .stage_src   = .create(.fragment_shader),
+    .stage_trg   = .create(.transfer),
+    .aspect      = .create(.color),
   });
   buffer.image_data_copy_fromBuffer(&A.data, &staging, .{
     .extent       = .{ .width = size.width, .height = size.height, .depth = 1 },
@@ -222,11 +222,11 @@ pub fn load (
   buffer.image_data_transition(&A.data, .{
     .layout_old  = .transfer_dst_optimal,
     .layout_new  = .shader_read_only_optimal,
-    .access_src  = .initOne(.transfer_write),
-    .access_trg  = .initOne(.shader_read),
-    .stage_src   = .initOne(.transfer),
-    .stage_trg   = .initOne(.fragment_shader),
-    .aspect      = .initOne(.color),
+    .access_src  = .create(.transfer_write),
+    .access_trg  = .create(.shader_read),
+    .stage_src   = .create(.transfer),
+    .stage_trg   = .create(.fragment_shader),
+    .aspect      = .create(.color),
   });
   S.buffer_end_onetime(&buffer, gpu);
 

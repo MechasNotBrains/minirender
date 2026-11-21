@@ -240,7 +240,7 @@ pub const Type = struct {
     R.sync.buffer[frameID].graphics_bind(pipeline);
     R.sync.buffer[frameID].constants_push(.{
       .pipeline_layout = &pipeline.layout,
-      .stage           = .initMany(&.{ .vertex, .fragment }),
+      .stage           = .create(&.{ .vertex, .fragment }),
       .size            = @sizeOf(minirender.Pipeline.Push),
       .data            = @constCast(@ptrCast(push)),
     });
@@ -364,6 +364,7 @@ pub const Type = struct {
   //__________________
   pub fn ui_add      (R :*@This(), shape :minirender.ui.Shape)         !void { try R.ui.add(shape); }
   pub fn ui_add_many (R :*@This(), shapes :[]const minirender.ui.Shape) !void { try R.ui.add_many(shapes); }
+  pub fn ui_clear    (R :*@This()) void { R.ui.clear(); }
   pub fn ui_view     (R :*@This()) *minirender.ui.View { return &R.ui.view; }
   pub fn ui_scene    (R :*@This()) *minirender.ui.Scene { return &R.ui.scene; }
   //__________________

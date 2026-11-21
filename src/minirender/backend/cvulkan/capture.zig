@@ -33,8 +33,8 @@ pub fn frame (
     .device_logical  = &gpu.device.logical,
     .allocator       = &gpu.instance.allocator,
     .size            = needed,
-    .usage           = .initOne(.transfer_dst),
-    .memory_flags    = .initMany(&.{ .host_visible, .host_coherent }),
+    .usage           = .create(.transfer_dst),
+    .memory_flags    = .create(&.{ .host_visible, .host_coherent }),
   });
   defer readback.destroy(&gpu.device.logical, &gpu.instance.allocator);
   var memory :cvk.Memory= .create(.{
@@ -52,13 +52,13 @@ pub fn frame (
   command.image_handle_transition(image, .{
     .layout_old = .present_src,
     .layout_new = .transfer_src_optimal,
-    .access_trg = .initOne(.transfer_read),
-    .stage_src  = .initOne(.top_of_pipe),
-    .stage_trg  = .initOne(.transfer),
-    .aspect     = .initOne(.color),
+    .access_trg = .create(.transfer_read),
+    .stage_src  = .create(.top_of_pipe),
+    .stage_trg  = .create(.transfer),
+    .aspect     = .create(.color),
   });
   cvk.C.vkCmdCopyImageToBuffer(command.ct, image,
-    @intFromEnum(cvk.vk.ImageLayout.transfer_src_optimal), readback.ct, 1, &.{
+    @backingInt(cvk.vk.ImageLayout.transfer_src_optimal), readback.ct, 1, &.{
       .bufferOffset      = 0,
       .bufferRowLength   = 0,
       .bufferImageHeight = 0,
@@ -74,10 +74,10 @@ pub fn frame (
   command.image_handle_transition(image, .{
     .layout_old = .transfer_src_optimal,
     .layout_new = .present_src,
-    .access_src = .initOne(.transfer_read),
-    .stage_src  = .initOne(.transfer),
-    .stage_trg  = .initOne(.bottom_of_pipe),
-    .aspect     = .initOne(.color),
+    .access_src = .create(.transfer_read),
+    .stage_src  = .create(.transfer),
+    .stage_trg  = .create(.bottom_of_pipe),
+    .aspect     = .create(.color),
   });
   S.buffer_end_onetime(&command, gpu);
 

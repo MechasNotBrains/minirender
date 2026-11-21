@@ -73,8 +73,8 @@ pub const Render = struct {
     if (R.instance_ssbo.id != 0) R.instance_ssbo.delete();
   }
 
-  pub fn sync (R :*Render, scene :*const mui.Scene, screen_width :f32, screen_height :f32) void {
-    const shapes = scene.shapes.data();
+  pub fn sync (R :*Render, scene :*const mui.Scene, view :*const mui.View, screen_width :f32, screen_height :f32) void {
+    const shapes = scene.shapes.items();
     if (shapes.len == 0) {
       R.instance_count = 0;
       return;
@@ -89,16 +89,19 @@ pub const Render = struct {
     const gpu_data = std.heap.page_allocator.alloc(GpuInstance, shapes.len) catch return;
     defer std.heap.page_allocator.free(gpu_data);
 
-    for (shapes, 0..) |shape, index| {
-      gpu_data[index] = .{
+    const screen = view.screen_size(screen_width, screen_height);
+    const center = view.screen_center();
+    const origin = [2]f32{ center[0] - screen[0] * 0.5, center[1] - screen[1] * 0.5 };
+    var visible :usize = 0;
+    for (shapes) |*shape| {
+      if (shape.hidden or shape.kind == .curve) continue;
+      const scale = [2]f32{ @floatCast(shape.width()), @floatCast(shape.height()) };
+      gpu_data[visible] = .{
         .position = .{
-          @floatCast(shape.transform.data[0] / 100.0 * screen_width),
-          @floatCast(shape.transform.data[1] / 100.0 * screen_height),
+          @as(f32, @floatCast(shape.x())) - scale[0] * 0.5 - origin[0],
+          @as(f32, @floatCast(shape.y())) - scale[1] * 0.5 - origin[1],
         },
-        .scale = .{
-          @floatCast(shape.transform.data[2] / 100.0 * screen_width),
-          @floatCast(shape.transform.data[3] / 100.0 * screen_height),
-        },
+        .scale = scale,
         .color = .{
           @floatCast(shape.color.r()),
           @floatCast(shape.color.g()),
@@ -111,17 +114,18 @@ pub const Render = struct {
           @floatCast(shape.uv.data[2]),
           @floatCast(shape.uv.data[3]),
         },
-        .kind = @intFromEnum(shape.kind),
-        .offset = @floatCast(shape.offset),
+        .kind = @backingInt(shape.kind),
+        .offset = @floatCast(shape.offset()),
       };
+      visible += 1;
     }
 
-    R.instance_ssbo.upload(gpu_data, 0);
-    R.instance_count = shapes.len;
+    R.instance_ssbo.upload(gpu_data[0..visible], 0);
+    R.instance_count = visible;
 
     R.program.enable();
     R.vao.enable();
-    R.screen_size_location.set([2]f32{ screen_width, screen_height });
+    R.screen_size_location.set(screen);
     R.atlas_location.set(@as(i32, 0));
     R.instance_ssbo.enable_base(0);
 
